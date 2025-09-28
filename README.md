@@ -30,7 +30,7 @@ I haven't yet tuned the performance now. However, preliminary test results on th
 ## TODO
 Currently, I only support one type of Grouped GEMM (SM90 FP8 Blockwise). The two main tasks that follow are:
 - [ ] Support more types of Grouped GEMM.
-- [ ] Tune the performance for different scenarios.
+- [ ] Tune the performance for different token range.
 
 ## Contact
 If you have any questions or suggestions, or perhaps you want to participate in the development process, please feel free to contact me. Both of these email addresses are valid:
