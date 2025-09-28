@@ -2,7 +2,7 @@
 ## Introduction
 Inspired by this [issue](https://github.com/sgl-project/sglang/issues/5309), the load of experts may vary depending on the scenario and is dynamically changing. Furthermore, this distribution is usually uneven, typically, most experts process only a small number of tokens, while a few experts handle a very large number of tokens.
 
-Currently, Grouped GEMM based on CUTLASS or Triton have become the standard solution for MoE modules. Typically, these Grouped GEMM implementations use a single matrix tiling strategy, such as (128, 128, 128). However, a single tiling strategy cannot efficiently handle all scenarios with varying numbers of tokens. When the number of tokens is small, using larger matrix tile can lead to unnecessary computations. Conversely, when the number of tokens is large, using smaller matrix tile may fail to fully utilize the hardware's power.
+Currently, Grouped GEMM based on CUTLASS or Triton have become the standard solution for MoE modules. Typically, these Grouped GEMM implementations use a single matrix tiling strategy, such as (128, 128, 128). However, a single tiling strategy cannot efficiently handle all scenarios with varying numbers of tokens. When the number of expert tokens is small, using larger matrix tile can lead to unnecessary computations. Conversely, when the number of expert tokens is large, using smaller matrix tile may fail to fully utilize the hardware's power.
 
 Therefore, I implemented a new MoE module solution based on CUTLASS. Create multiple kernels with different matrix tile sizes, and dynamically dispatch tasks to each kernel based on problem sizes. To avoid the overhead of kernel prologue and epilogue, I use PDL features for optimization.
 
