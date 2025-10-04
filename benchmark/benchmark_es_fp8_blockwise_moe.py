@@ -57,6 +57,8 @@ def create_unbalanced_expert_token_distribution(max_num_experts):
     return group_ms
 
 group_ms = create_unbalanced_expert_token_distribution(8192)
+# group_ms = [128 for _ in range(8192)]
+# group_ms = [128 if i % 2 == 0 else 64 for i in range(8192)]
 
 def bench_es(
     n: int,
@@ -314,7 +316,11 @@ def main():
         # Prefill, Qwen3-235B-A22B-FP8, gateup, TP = 4
         ShapeArg(n=768, k=4096, num_groups=128),
         # Prefill, Qwen3-235B-A22B-FP8, down, TP = 4
-        ShapeArg(n=4096, k=384, num_groups=128)
+        ShapeArg(n=4096, k=384, num_groups=128),
+        # Decode, DeepSeek-R1, gateup, bs = 128, EP = 8
+        ShapeArg(n=4096, k=7168, num_groups=32),
+        # Decode, DeepSeek-R1, gateup, bs = 256, EP = 16
+        ShapeArg(n=4096, k=7168, num_groups=16),
     ]
     args = parser.parse_args()
     benchmark_one_shape(shape_args, args.num_warmup, args.num_run)
