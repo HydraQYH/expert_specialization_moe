@@ -20,8 +20,6 @@ void es_sm90_fp8_blockwise_scaled_group_mm_pre_compute(
     torch::Tensor& b_ptrs,
     torch::Tensor& a_scales_ptrs,
     torch::Tensor& b_scales_ptrs,
-    torch::Tensor& swap_layout_sfa,
-    torch::Tensor& swap_layout_sfb,
     torch::Tensor& layout_sfa,
     torch::Tensor& layout_sfb,
     torch::Tensor& lm_problem_sizes,
@@ -41,12 +39,8 @@ void es_sm90_fp8_blockwise_scaled_group_mm_pre_compute(
   TORCH_CHECK(a_scales.dtype() == torch::kFloat32);
   TORCH_CHECK(b_scales.dtype() == torch::kFloat32);
 
-  using SwapLayoutSFA = typename Fp8BlockwiseGroupedGemmSFLayoutFunctor<PerfConfigLowM>::LayoutSFA;
-  using SwapLayoutSFB = typename Fp8BlockwiseGroupedGemmSFLayoutFunctor<PerfConfigLowM>::LayoutSFB;
   using LayoutSFA = typename Fp8BlockwiseGroupedGemmSFLayoutFunctor<PerfConfigMiddleM>::LayoutSFA;
   using LayoutSFB = typename Fp8BlockwiseGroupedGemmSFLayoutFunctor<PerfConfigMiddleM>::LayoutSFB;
-  struct Fp8BlockwiseGroupedGemmSFLayoutFunctor<PerfConfigLowM> sf_layout_swap(
-    reinterpret_cast<SwapLayoutSFA*>(swap_layout_sfa.data_ptr()), reinterpret_cast<SwapLayoutSFB*>(swap_layout_sfb.data_ptr()));
   struct Fp8BlockwiseGroupedGemmSFLayoutFunctor<PerfConfigMiddleM> sf_layout(
     reinterpret_cast<LayoutSFA*>(layout_sfa.data_ptr()), reinterpret_cast<LayoutSFB*>(layout_sfb.data_ptr()));
 
@@ -72,7 +66,7 @@ void es_sm90_fp8_blockwise_scaled_group_mm_pre_compute(
     );
     groupedGemmPreComputeKernel<<<1, num_experts, 0, stream>>>(
       static_cast<int*>(problem_sizes.data_ptr()), 
-      of, sf_layout_swap, sf_layout, lm_psf, mm_psf, hm_psf
+      of, sf_layout, lm_psf, mm_psf, hm_psf
     );
   } else if (out_tensors.dtype() == torch::kFloat16) {
     struct Fp8BlockwiseGroupedGemmOffsetFunctor<cutlass::float_e4m3_t, float, cutlass::half_t> of(
@@ -90,7 +84,7 @@ void es_sm90_fp8_blockwise_scaled_group_mm_pre_compute(
     );
     groupedGemmPreComputeKernel<<<1, num_experts, 0, stream>>>(
       static_cast<int*>(problem_sizes.data_ptr()), 
-      of, sf_layout_swap, sf_layout, lm_psf, mm_psf, hm_psf
+      of, sf_layout, lm_psf, mm_psf, hm_psf
     );
   } else {
     TORCH_CHECK(false, "Invalid output type (must be float16 or bfloat16)");
@@ -182,8 +176,6 @@ void es_sm90_fp8_blockwise_scaled_group_mm_distpatch_out_dtype(
     const torch::Tensor& stride_a,
     const torch::Tensor& stride_b,
     const torch::Tensor& stride_d,
-    const torch::Tensor& swap_layout_sfa,
-    const torch::Tensor& swap_layout_sfb,
     const torch::Tensor& layout_sfa,
     const torch::Tensor& layout_sfb,
     const torch::Tensor& lm_problem_sizes,
@@ -194,7 +186,7 @@ void es_sm90_fp8_blockwise_scaled_group_mm_distpatch_out_dtype(
   using HighMGemmTraits = ExpertSpecializationSm90FP8BlockwiseGroupedGemmTraits<OutType, cutlass::layout::RowMajor, PerfConfigHighM>;
   launch_sm90_fp8_blockwise_scaled_group_mm<LowMGemmTraits>(
     out_ptrs, b_ptrs, a_ptrs, b_scales_ptrs, a_scales_ptrs,
-    stride_b, stride_a, stride_d, swap_layout_sfa, swap_layout_sfb,
+    stride_b, stride_a, stride_d, layout_sfb, layout_sfa,
     lm_problem_sizes
   );
   launch_sm90_fp8_blockwise_scaled_group_mm<MiddleMGemmTraits>(

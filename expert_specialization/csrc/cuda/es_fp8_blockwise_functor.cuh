@@ -193,7 +193,6 @@ struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigHighM> {
 
 template<
     typename OffsetFunctor,
-    typename SwapABScaleLayoutFunctor,
     typename ScaleLayoutFunctor,
     typename LowMProblemSizeFilterFunctor,
     typename MiddleMProblemSizeFilterFunctor,
@@ -201,7 +200,6 @@ template<
 __global__ void groupedGemmPreComputeKernel(
     int* problem_sizes,
     OffsetFunctor offset_functor,
-    SwapABScaleLayoutFunctor swap_ab_sf_functor,
     ScaleLayoutFunctor sf_functor,
     LowMProblemSizeFilterFunctor lm_psf_functor,
     MiddleMProblemSizeFilterFunctor mm_psf_functor,
@@ -210,9 +208,8 @@ __global__ void groupedGemmPreComputeKernel(
   int m = problem_sizes[expert_id * 3 + 0];
   int n = problem_sizes[expert_id * 3 + 1];
   int k = problem_sizes[expert_id * 3 + 2];
-  
+
   offset_functor(expert_id, m, n, k);
-  swap_ab_sf_functor(expert_id, m, n, k);
   sf_functor(expert_id, m, n, k);
   lm_psf_functor(expert_id, m, n, k);
   mm_psf_functor(expert_id, m, n, k);

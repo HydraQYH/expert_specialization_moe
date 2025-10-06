@@ -63,8 +63,6 @@ void es_fp8_blockwise_scaled_grouped_mm(
   torch::Tensor a_scales_ptrs = torch::empty(num_experts, options_int64);
   torch::Tensor b_scales_ptrs = torch::empty(num_experts, options_int64);
 
-  torch::Tensor swap_layout_sfa = torch::empty({num_experts, 5}, options_int32);
-  torch::Tensor swap_layout_sfb = torch::empty({num_experts, 5}, options_int32);
   torch::Tensor layout_sfa = torch::empty({num_experts, 5}, options_int32);
   torch::Tensor layout_sfb = torch::empty({num_experts, 5}, options_int32);
   
@@ -72,23 +70,20 @@ void es_fp8_blockwise_scaled_grouped_mm(
   torch::Tensor mm_problem_sizes = torch::empty({num_experts, 3}, options_int32);
   torch::Tensor hm_problem_sizes = torch::empty({num_experts, 3}, options_int32);
   expert_specialization::es_sm90_fp8_blockwise_scaled_group_mm_pre_compute(
-    out_ptrs, a_ptrs, b_ptrs, a_scales_ptrs, b_scales_ptrs,
-    swap_layout_sfa, swap_layout_sfb, layout_sfa, layout_sfb,
+    out_ptrs, a_ptrs, b_ptrs, a_scales_ptrs, b_scales_ptrs, layout_sfa, layout_sfb,
     lm_problem_sizes, mm_problem_sizes, hm_problem_sizes,
     output, a, b, scales_a, scales_b, problem_sizes, expert_offsets
   );
   if (output.dtype() == torch::kBFloat16) {
     expert_specialization::es_sm90_fp8_blockwise_scaled_group_mm_distpatch_out_dtype<cutlass::bfloat16_t>(
       out_ptrs, a_ptrs, b_ptrs, a_scales_ptrs, b_scales_ptrs,
-      stride_a, stride_b, stride_d,
-      swap_layout_sfa, swap_layout_sfb, layout_sfa, layout_sfb,
+      stride_a, stride_b, stride_d, layout_sfa, layout_sfb,
       lm_problem_sizes, mm_problem_sizes, hm_problem_sizes
     );
   } else if (output.dtype() == torch::kFloat16) {
     expert_specialization::es_sm90_fp8_blockwise_scaled_group_mm_distpatch_out_dtype<cutlass::half_t>(
       out_ptrs, a_ptrs, b_ptrs, a_scales_ptrs, b_scales_ptrs,
-      stride_a, stride_b, stride_d,
-      swap_layout_sfa, swap_layout_sfb, layout_sfa, layout_sfb,
+      stride_a, stride_b, stride_d, layout_sfa, layout_sfb,
       lm_problem_sizes, mm_problem_sizes, hm_problem_sizes
     );
   } else {
