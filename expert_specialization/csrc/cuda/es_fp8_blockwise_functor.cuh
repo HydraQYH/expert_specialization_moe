@@ -172,7 +172,7 @@ struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigMiddleM> {
 };
 
 template <>
-struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigHighM> {
+struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigHighMH20> {
   int* problem_sizes{nullptr};
 
   Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor() = default;

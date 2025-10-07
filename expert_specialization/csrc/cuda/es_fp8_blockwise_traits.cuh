@@ -52,12 +52,24 @@ struct PerfConfigMiddleM {
   using LayoutSFB = decltype(ScaleConfig::deduce_layoutSFB());
 };
 
-struct PerfConfigHighM {
+struct PerfConfigHighMH20 {
   using ElementA = cutlass::float_e4m3_t;
   using MmaTileShape = Shape<_64, _128, _128>;
   using ClusterShape = Shape<_2, _1, _1>;
   using KernelSchedule = cutlass::gemm::KernelPtrArrayTmaWarpSpecializedPingpongFP8Blockwise;
   using EpilogueSchedule = cutlass::epilogue::PtrArrayTmaWarpSpecializedPingpong;
+  using ScaleConfig =
+    cutlass::detail::Sm90BlockwiseScaleConfig<1, 128, 128, cute::GMMA::Major::K, cute::GMMA::Major::K>;
+  using LayoutSFA = decltype(ScaleConfig::deduce_layoutSFA());
+  using LayoutSFB = decltype(ScaleConfig::deduce_layoutSFB());
+};
+
+struct PerfConfigHighMHx00 {
+  using ElementA = cutlass::float_e4m3_t;
+  using MmaTileShape = Shape<_128, _128, _128>;
+  using ClusterShape = Shape<_1, _2, _1>;
+  using KernelSchedule = cutlass::gemm::KernelPtrArrayTmaWarpSpecializedCooperativeFP8Blockwise;
+  using EpilogueSchedule = cutlass::epilogue::PtrArrayTmaWarpSpecializedCooperative;
   using ScaleConfig =
     cutlass::detail::Sm90BlockwiseScaleConfig<1, 128, 128, cute::GMMA::Major::K, cute::GMMA::Major::K>;
   using LayoutSFA = decltype(ScaleConfig::deduce_layoutSFA());

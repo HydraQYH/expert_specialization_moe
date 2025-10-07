@@ -1,5 +1,6 @@
 #pragma once
 #include <iostream>
+#include <string>
 #include <ATen/cuda/CUDAContext.h>
 #include <c10/cuda/CUDAGuard.h>
 #include <torch/all.h>
@@ -46,7 +47,7 @@ void es_sm90_fp8_blockwise_scaled_group_mm_pre_compute(
 
   struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigLowM> lm_psf(static_cast<int*>(lm_problem_sizes.data_ptr()));
   struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigMiddleM> mm_psf(static_cast<int*>(mm_problem_sizes.data_ptr()));
-  struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigHighM> hm_psf(static_cast<int*>(hm_problem_sizes.data_ptr()));
+  struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigHighMH20> hm_psf(static_cast<int*>(hm_problem_sizes.data_ptr()));
 
   int num_experts = (int)expert_offsets.size(0);
   auto stream = at::cuda::getCurrentCUDAStream(a_tensors.device().index());
@@ -183,7 +184,8 @@ void es_sm90_fp8_blockwise_scaled_group_mm_distpatch_out_dtype(
     const torch::Tensor& hm_problem_sizes) {
   using LowMGemmTraits = ExpertSpecializationSm90FP8BlockwiseGroupedGemmTraits<OutType, cutlass::layout::ColumnMajor, PerfConfigLowM>;
   using MiddleMGemmTraits = ExpertSpecializationSm90FP8BlockwiseGroupedGemmTraits<OutType, cutlass::layout::RowMajor, PerfConfigMiddleM>;
-  using HighMGemmTraits = ExpertSpecializationSm90FP8BlockwiseGroupedGemmTraits<OutType, cutlass::layout::RowMajor, PerfConfigHighM>;
+  using HighMGemmH20Traits = ExpertSpecializationSm90FP8BlockwiseGroupedGemmTraits<OutType, cutlass::layout::RowMajor, PerfConfigHighMH20>;
+  using HighMGemmHx00Traits = ExpertSpecializationSm90FP8BlockwiseGroupedGemmTraits<OutType, cutlass::layout::RowMajor, PerfConfigHighMHx00>;
   launch_sm90_fp8_blockwise_scaled_group_mm<LowMGemmTraits>(
     out_ptrs, b_ptrs, a_ptrs, b_scales_ptrs, a_scales_ptrs,
     stride_b, stride_a, stride_d, layout_sfb, layout_sfa,
@@ -194,11 +196,22 @@ void es_sm90_fp8_blockwise_scaled_group_mm_distpatch_out_dtype(
     stride_a, stride_b, stride_d, layout_sfa, layout_sfb,
     mm_problem_sizes
   );
-  launch_sm90_fp8_blockwise_scaled_group_mm<HighMGemmTraits>(
-    out_ptrs, a_ptrs, b_ptrs, a_scales_ptrs, b_scales_ptrs,
-    stride_a, stride_b, stride_d, layout_sfa, layout_sfb,
-    hm_problem_sizes
-  );
+
+  const std::string H20_device_type_str("NVIDIA H20");
+  bool is_h20_device = std::string(at::cuda::getCurrentDeviceProperties()->name) == H20_device_type_str;
+  if (!is_h20_device) {
+    launch_sm90_fp8_blockwise_scaled_group_mm<HighMGemmHx00Traits>(
+      out_ptrs, a_ptrs, b_ptrs, a_scales_ptrs, b_scales_ptrs,
+      stride_a, stride_b, stride_d, layout_sfa, layout_sfb,
+      hm_problem_sizes
+    );
+  } else {
+    launch_sm90_fp8_blockwise_scaled_group_mm<HighMGemmH20Traits>(
+      out_ptrs, a_ptrs, b_ptrs, a_scales_ptrs, b_scales_ptrs,
+      stride_a, stride_b, stride_d, layout_sfa, layout_sfb,
+      hm_problem_sizes
+    );
+  }
 }
 
 } // namespace expert_specialization
