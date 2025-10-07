@@ -104,10 +104,10 @@ struct Fp8BlockwiseGroupedGemmSFLayoutFunctor {
 
 // Specialization for Swap A/B
 template <>
-struct Fp8BlockwiseGroupedGemmSFLayoutFunctor<PerfConfigLowM> {
-  using ScaleConfig = typename PerfConfigLowM::ScaleConfig;
-  using LayoutSFA = typename PerfConfigLowM::LayoutSFA;
-  using LayoutSFB = typename PerfConfigLowM::LayoutSFB;
+struct Fp8BlockwiseGroupedGemmSFLayoutFunctor<PerfConfigLowMH20> {
+  using ScaleConfig = typename PerfConfigLowMH20::ScaleConfig;
+  using LayoutSFA = typename PerfConfigLowMH20::LayoutSFA;
+  using LayoutSFB = typename PerfConfigLowMH20::LayoutSFB;
   LayoutSFA* layout_sfa_base{nullptr};
   LayoutSFB* layout_sfb_base{nullptr};
 
@@ -131,7 +131,7 @@ template <typename PerfConfig>
 struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor;
 
 template <>
-struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigLowM> {
+struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigLowMH20> {
   int* problem_sizes{nullptr};
 
   Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor() = default;

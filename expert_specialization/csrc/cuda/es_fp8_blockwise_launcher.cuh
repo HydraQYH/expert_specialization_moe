@@ -45,7 +45,7 @@ void es_sm90_fp8_blockwise_scaled_group_mm_pre_compute(
   struct Fp8BlockwiseGroupedGemmSFLayoutFunctor<PerfConfigMiddleM> sf_layout(
     reinterpret_cast<LayoutSFA*>(layout_sfa.data_ptr()), reinterpret_cast<LayoutSFB*>(layout_sfb.data_ptr()));
 
-  struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigLowM> lm_psf(static_cast<int*>(lm_problem_sizes.data_ptr()));
+  struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigLowMH20> lm_psf(static_cast<int*>(lm_problem_sizes.data_ptr()));
   struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigMiddleM> mm_psf(static_cast<int*>(mm_problem_sizes.data_ptr()));
   struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigHighMH20> hm_psf(static_cast<int*>(hm_problem_sizes.data_ptr()));
 
@@ -182,23 +182,35 @@ void es_sm90_fp8_blockwise_scaled_group_mm_distpatch_out_dtype(
     const torch::Tensor& lm_problem_sizes,
     const torch::Tensor& mm_problem_sizes,
     const torch::Tensor& hm_problem_sizes) {
-  using LowMGemmTraits = ExpertSpecializationSm90FP8BlockwiseGroupedGemmTraits<OutType, cutlass::layout::ColumnMajor, PerfConfigLowM>;
+  using LowMGemmH20Traits = ExpertSpecializationSm90FP8BlockwiseGroupedGemmTraits<OutType, cutlass::layout::ColumnMajor, PerfConfigLowMH20>;
+  using LowMGemmHx00Traits = ExpertSpecializationSm90FP8BlockwiseGroupedGemmTraits<OutType, cutlass::layout::ColumnMajor, PerfConfigLowMHx00>;
   using MiddleMGemmTraits = ExpertSpecializationSm90FP8BlockwiseGroupedGemmTraits<OutType, cutlass::layout::RowMajor, PerfConfigMiddleM>;
   using HighMGemmH20Traits = ExpertSpecializationSm90FP8BlockwiseGroupedGemmTraits<OutType, cutlass::layout::RowMajor, PerfConfigHighMH20>;
   using HighMGemmHx00Traits = ExpertSpecializationSm90FP8BlockwiseGroupedGemmTraits<OutType, cutlass::layout::RowMajor, PerfConfigHighMHx00>;
-  launch_sm90_fp8_blockwise_scaled_group_mm<LowMGemmTraits>(
-    out_ptrs, b_ptrs, a_ptrs, b_scales_ptrs, a_scales_ptrs,
-    stride_b, stride_a, stride_d, layout_sfb, layout_sfa,
-    lm_problem_sizes
-  );
+  
+  const std::string H20_device_type_str("NVIDIA H20");
+  bool is_h20_device = std::string(at::cuda::getCurrentDeviceProperties()->name) == H20_device_type_str;
+
+  if (!is_h20_device) {
+    launch_sm90_fp8_blockwise_scaled_group_mm<LowMGemmHx00Traits>(
+      out_ptrs, b_ptrs, a_ptrs, b_scales_ptrs, a_scales_ptrs,
+      stride_b, stride_a, stride_d, layout_sfb, layout_sfa,
+      lm_problem_sizes
+    );
+  } else {
+    launch_sm90_fp8_blockwise_scaled_group_mm<LowMGemmH20Traits>(
+      out_ptrs, b_ptrs, a_ptrs, b_scales_ptrs, a_scales_ptrs,
+      stride_b, stride_a, stride_d, layout_sfb, layout_sfa,
+      lm_problem_sizes
+    );
+  }
+
   launch_sm90_fp8_blockwise_scaled_group_mm<MiddleMGemmTraits>(
     out_ptrs, a_ptrs, b_ptrs, a_scales_ptrs, b_scales_ptrs,
     stride_a, stride_b, stride_d, layout_sfa, layout_sfb,
     mm_problem_sizes
   );
 
-  const std::string H20_device_type_str("NVIDIA H20");
-  bool is_h20_device = std::string(at::cuda::getCurrentDeviceProperties()->name) == H20_device_type_str;
   if (!is_h20_device) {
     launch_sm90_fp8_blockwise_scaled_group_mm<HighMGemmHx00Traits>(
       out_ptrs, a_ptrs, b_ptrs, a_scales_ptrs, b_scales_ptrs,
