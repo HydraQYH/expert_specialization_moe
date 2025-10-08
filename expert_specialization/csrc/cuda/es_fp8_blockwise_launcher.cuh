@@ -235,10 +235,10 @@ void es_sm90_fp8_blockwise_scaled_group_mm_distpatch_out_dtype(
       mm_problem_sizes
     );
   } else {
-    launch_sm90_fp8_blockwise_scaled_group_mm<MiddleMGemmH20Traits>(
-      out_ptrs, b_ptrs, a_ptrs, b_scales_ptrs, a_scales_ptrs,
-      stride_b, stride_a, stride_d, layout_sfb, layout_sfa,
-      lm_problem_sizes
+    launch_sm90_fp8_blockwise_scaled_group_mm<HighMGemmHx00Traits>(
+      out_ptrs, a_ptrs, b_ptrs, a_scales_ptrs, b_scales_ptrs,
+      stride_a, stride_b, stride_d, layout_sfa, layout_sfb,
+      mm_problem_sizes
     );
   }
 
