@@ -152,7 +152,7 @@ struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigLowMH20> {
 };
 
 template <>
-struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigMiddleM> {
+struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigMiddleMH20> {
   int* problem_sizes{nullptr};
 
   Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor() = default;
@@ -162,6 +162,26 @@ struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigMiddleM> {
     if (m > 48 && m <= 96) {
       problem_sizes[expert_id * 3 + 0] = m;
       problem_sizes[expert_id * 3 + 1] = n;
+      problem_sizes[expert_id * 3 + 2] = k;
+    } else {
+      problem_sizes[expert_id * 3 + 0] = 0;
+      problem_sizes[expert_id * 3 + 1] = 0;
+      problem_sizes[expert_id * 3 + 2] = 0;      
+    }
+  }
+};
+
+template <>
+struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigMiddleMHx00> {
+  int* problem_sizes{nullptr};
+
+  Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor() = default;
+  Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor(int* _problem_sizes): problem_sizes(_problem_sizes) {}
+
+  void CUTE_DEVICE operator()(int64_t expert_id, int m, int n, int k) {
+    if (m > 48 && m <= 96) {
+      problem_sizes[expert_id * 3 + 0] = n;
+      problem_sizes[expert_id * 3 + 1] = m;
       problem_sizes[expert_id * 3 + 2] = k;
     } else {
       problem_sizes[expert_id * 3 + 0] = 0;
