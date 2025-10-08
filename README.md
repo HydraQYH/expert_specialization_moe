@@ -10,7 +10,7 @@ Therefore, I implemented a new MoE module solution based on CUTLASS. Create mult
 ```bash
 git clone --recursive https://github.com/HydraQYH/expert_specialization_moe.git
 cd expert_specialization
-pip install -v --no-build-isolation -e .
+python3 setup.py install
 ```
 
 ## Unitest(Accuracy)
