@@ -43,17 +43,15 @@ void es_sm90_fp8_blockwise_scaled_group_mm_pre_compute(
   const std::string H20_device_type_str("NVIDIA H20");
   bool is_h20_device = std::string(at::cuda::getCurrentDeviceProperties()->name) == H20_device_type_str;
 
-  using LayoutSFA = typename Fp8BlockwiseGroupedGemmSFLayoutFunctor<PerfConfigMiddleMH20>::LayoutSFA;
-  using LayoutSFB = typename Fp8BlockwiseGroupedGemmSFLayoutFunctor<PerfConfigMiddleMH20>::LayoutSFB;
+  // Creat Scale Factor Layout Functor
+  using LayoutSFA = typename PerfConfigMiddleMH20::LayoutSFA;
+  using LayoutSFB = typename PerfConfigMiddleMH20::LayoutSFB;
   struct Fp8BlockwiseGroupedGemmSFLayoutFunctor<PerfConfigMiddleMH20> sf_layout(
     reinterpret_cast<LayoutSFA*>(layout_sfa.data_ptr()), reinterpret_cast<LayoutSFB*>(layout_sfb.data_ptr()));
 
-  struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigLowMH20> lm_psf(static_cast<int*>(lm_problem_sizes.data_ptr()));
-  // struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigMiddleM> mm_psf(static_cast<int*>(mm_problem_sizes.data_ptr()));
-  struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigHighMH20> hm_psf(static_cast<int*>(hm_problem_sizes.data_ptr()));
-
   int num_experts = (int)expert_offsets.size(0);
   auto stream = at::cuda::getCurrentCUDAStream(a_tensors.device().index());
+  // Dispatch
   if (out_tensors.dtype() == torch::kBFloat16) {
     struct Fp8BlockwiseGroupedGemmOffsetFunctor<cutlass::float_e4m3_t, float, cutlass::bfloat16_t> of(
       static_cast<int*>(expert_offsets.data_ptr()),
@@ -69,13 +67,17 @@ void es_sm90_fp8_blockwise_scaled_group_mm_pre_compute(
       static_cast<cutlass::bfloat16_t**>(out_ptrs.data_ptr())
     );
     if (!is_h20_device) {
+      struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigLowMHx00> lm_psf(static_cast<int*>(lm_problem_sizes.data_ptr()));
       struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigMiddleMHx00> mm_psf(static_cast<int*>(mm_problem_sizes.data_ptr()));
+      struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigHighMHx00> hm_psf(static_cast<int*>(hm_problem_sizes.data_ptr()));
       groupedGemmPreComputeKernel<<<1, num_experts, 0, stream>>>(
         static_cast<int*>(problem_sizes.data_ptr()), 
         of, sf_layout, lm_psf, mm_psf, hm_psf
       );
     } else {
+      struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigLowMH20> lm_psf(static_cast<int*>(lm_problem_sizes.data_ptr()));
       struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigMiddleMH20> mm_psf(static_cast<int*>(mm_problem_sizes.data_ptr()));
+      struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigHighMH20> hm_psf(static_cast<int*>(hm_problem_sizes.data_ptr()));
       groupedGemmPreComputeKernel<<<1, num_experts, 0, stream>>>(
         static_cast<int*>(problem_sizes.data_ptr()), 
         of, sf_layout, lm_psf, mm_psf, hm_psf
@@ -96,13 +98,17 @@ void es_sm90_fp8_blockwise_scaled_group_mm_pre_compute(
       static_cast<cutlass::half_t**>(out_ptrs.data_ptr())
     );
     if (!is_h20_device) {
+      struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigLowMHx00> lm_psf(static_cast<int*>(lm_problem_sizes.data_ptr()));
       struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigMiddleMHx00> mm_psf(static_cast<int*>(mm_problem_sizes.data_ptr()));
+      struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigHighMHx00> hm_psf(static_cast<int*>(hm_problem_sizes.data_ptr()));
       groupedGemmPreComputeKernel<<<1, num_experts, 0, stream>>>(
         static_cast<int*>(problem_sizes.data_ptr()), 
         of, sf_layout, lm_psf, mm_psf, hm_psf
       );
     } else {
+      struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigLowMH20> lm_psf(static_cast<int*>(lm_problem_sizes.data_ptr()));
       struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigMiddleMH20> mm_psf(static_cast<int*>(mm_problem_sizes.data_ptr()));
+      struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigHighMH20> hm_psf(static_cast<int*>(hm_problem_sizes.data_ptr()));
       groupedGemmPreComputeKernel<<<1, num_experts, 0, stream>>>(
         static_cast<int*>(problem_sizes.data_ptr()), 
         of, sf_layout, lm_psf, mm_psf, hm_psf
@@ -226,7 +232,6 @@ void es_sm90_fp8_blockwise_scaled_group_mm_distpatch_out_dtype(
       lm_problem_sizes
     );
   }
-
 
   if (!is_h20_device) {
     launch_sm90_fp8_blockwise_scaled_group_mm<MiddleMGemmHx00Traits>(
