@@ -1,19 +1,16 @@
 #pragma once
-#include <iostream>
 #include <cuda.h>
 
-#include "cute/tensor.hpp"
+#include <iostream>
 
+#include "cute/tensor.hpp"
 #include "es_fp8_blockwise_traits.cuh"
 
 namespace expert_specialization {
 
 using namespace cute;
 
-template <
-  typename ElementAB,
-  typename ElementSF,
-  typename ElementD>
+template <typename ElementAB, typename ElementSF, typename ElementD>
 struct Fp8BlockwiseGroupedGemmOffsetFunctor {
   // Input
   int* expert_offsets{nullptr};
@@ -34,29 +31,28 @@ struct Fp8BlockwiseGroupedGemmOffsetFunctor {
 
   Fp8BlockwiseGroupedGemmOffsetFunctor() = default;
   Fp8BlockwiseGroupedGemmOffsetFunctor(
-    int* _expert_offsets,
-    ElementAB* _a_base,
-    ElementAB* _b_base,
-    ElementD* _out_base,
-    ElementSF* _a_scales_base,
-    ElementSF* _b_scales_base,
-    ElementAB** _a_offsets,
-    ElementAB** _b_offsets,
-    ElementSF** _a_scales_offsets,
-    ElementSF** _b_scales_offsets,
-    ElementD** _out_offsets
-  ):
-    expert_offsets(_expert_offsets),
-    a_base(_a_base),
-    b_base(_b_base),
-    out_base(_out_base),
-    a_scales_base(_a_scales_base),
-    b_scales_base(_b_scales_base),
-    a_offsets(_a_offsets),
-    b_offsets(_b_offsets),
-    a_scales_offsets(_a_scales_offsets),
-    b_scales_offsets(_b_scales_offsets),
-    out_offsets(_out_offsets) {}
+      int* _expert_offsets,
+      ElementAB* _a_base,
+      ElementAB* _b_base,
+      ElementD* _out_base,
+      ElementSF* _a_scales_base,
+      ElementSF* _b_scales_base,
+      ElementAB** _a_offsets,
+      ElementAB** _b_offsets,
+      ElementSF** _a_scales_offsets,
+      ElementSF** _b_scales_offsets,
+      ElementD** _out_offsets)
+      : expert_offsets(_expert_offsets),
+        a_base(_a_base),
+        b_base(_b_base),
+        out_base(_out_base),
+        a_scales_base(_a_scales_base),
+        b_scales_base(_b_scales_base),
+        a_offsets(_a_offsets),
+        b_offsets(_b_offsets),
+        a_scales_offsets(_a_scales_offsets),
+        b_scales_offsets(_b_scales_offsets),
+        out_offsets(_out_offsets) {}
 
   void CUTE_DEVICE operator()(int64_t expert_id, int m, int n, int k) {
     int64_t expert_offset = static_cast<int64_t>(expert_offsets[expert_id]);
@@ -87,12 +83,8 @@ struct Fp8BlockwiseGroupedGemmSFLayoutFunctor {
   LayoutSFB* layout_sfb_base{nullptr};
 
   Fp8BlockwiseGroupedGemmSFLayoutFunctor() = default;
-  Fp8BlockwiseGroupedGemmSFLayoutFunctor(
-    LayoutSFA* _layout_sfa_base,
-    LayoutSFB* _layout_sfb_base
-  ):
-    layout_sfa_base(_layout_sfa_base),
-    layout_sfb_base(_layout_sfb_base) {}
+  Fp8BlockwiseGroupedGemmSFLayoutFunctor(LayoutSFA* _layout_sfa_base, LayoutSFB* _layout_sfb_base)
+      : layout_sfa_base(_layout_sfa_base), layout_sfb_base(_layout_sfb_base) {}
 
   void CUTE_DEVICE operator()(int64_t expert_id, int m, int n, int k) {
     LayoutSFA* layout_sfa_ptr = layout_sfa_base + expert_id;
@@ -112,12 +104,8 @@ struct Fp8BlockwiseGroupedGemmSFLayoutFunctor<PerfConfigLowMH20> {
   LayoutSFB* layout_sfb_base{nullptr};
 
   Fp8BlockwiseGroupedGemmSFLayoutFunctor() = default;
-  Fp8BlockwiseGroupedGemmSFLayoutFunctor(
-    LayoutSFA* _layout_sfa_base,
-    LayoutSFB* _layout_sfb_base
-  ):
-    layout_sfa_base(_layout_sfa_base),
-    layout_sfb_base(_layout_sfb_base) {}
+  Fp8BlockwiseGroupedGemmSFLayoutFunctor(LayoutSFA* _layout_sfa_base, LayoutSFB* _layout_sfb_base)
+      : layout_sfa_base(_layout_sfa_base), layout_sfb_base(_layout_sfb_base) {}
 
   void CUTE_DEVICE operator()(int64_t expert_id, int m, int n, int k) {
     LayoutSFA* layout_sfa_ptr = layout_sfa_base + expert_id;
@@ -135,7 +123,7 @@ struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigLowMH20> {
   int* problem_sizes{nullptr};
 
   Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor() = default;
-  Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor(int* _problem_sizes): problem_sizes(_problem_sizes) {}
+  Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor(int* _problem_sizes) : problem_sizes(_problem_sizes) {}
 
   void CUTE_DEVICE operator()(int64_t expert_id, int m, int n, int k) {
     if (m <= 48) {
@@ -146,7 +134,7 @@ struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigLowMH20> {
     } else {
       problem_sizes[expert_id * 3 + 0] = 0;
       problem_sizes[expert_id * 3 + 1] = 0;
-      problem_sizes[expert_id * 3 + 2] = 0;      
+      problem_sizes[expert_id * 3 + 2] = 0;
     }
   }
 };
@@ -156,10 +144,10 @@ struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigLowMHx00> {
   int* problem_sizes{nullptr};
 
   Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor() = default;
-  Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor(int* _problem_sizes): problem_sizes(_problem_sizes) {}
+  Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor(int* _problem_sizes) : problem_sizes(_problem_sizes) {}
 
   void CUTE_DEVICE operator()(int64_t expert_id, int m, int n, int k) {
-    if (m < 64) {
+    if (m <= 32) {
       // Swap A/B
       problem_sizes[expert_id * 3 + 0] = n;
       problem_sizes[expert_id * 3 + 1] = m;
@@ -167,7 +155,7 @@ struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigLowMHx00> {
     } else {
       problem_sizes[expert_id * 3 + 0] = 0;
       problem_sizes[expert_id * 3 + 1] = 0;
-      problem_sizes[expert_id * 3 + 2] = 0;      
+      problem_sizes[expert_id * 3 + 2] = 0;
     }
   }
 };
@@ -177,7 +165,7 @@ struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigMiddleMH20> {
   int* problem_sizes{nullptr};
 
   Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor() = default;
-  Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor(int* _problem_sizes): problem_sizes(_problem_sizes) {}
+  Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor(int* _problem_sizes) : problem_sizes(_problem_sizes) {}
 
   void CUTE_DEVICE operator()(int64_t expert_id, int m, int n, int k) {
     if (m > 48 && m <= 96) {
@@ -187,7 +175,7 @@ struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigMiddleMH20> {
     } else {
       problem_sizes[expert_id * 3 + 0] = 0;
       problem_sizes[expert_id * 3 + 1] = 0;
-      problem_sizes[expert_id * 3 + 2] = 0;      
+      problem_sizes[expert_id * 3 + 2] = 0;
     }
   }
 };
@@ -197,17 +185,17 @@ struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigMiddleMHx00> {
   int* problem_sizes{nullptr};
 
   Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor() = default;
-  Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor(int* _problem_sizes): problem_sizes(_problem_sizes) {}
+  Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor(int* _problem_sizes) : problem_sizes(_problem_sizes) {}
 
   void CUTE_DEVICE operator()(int64_t expert_id, int m, int n, int k) {
-    if (m >= 64 && m < 128) {
+    if (m > 32 && m <= 64) {
       problem_sizes[expert_id * 3 + 0] = n;
       problem_sizes[expert_id * 3 + 1] = m;
       problem_sizes[expert_id * 3 + 2] = k;
     } else {
       problem_sizes[expert_id * 3 + 0] = 0;
       problem_sizes[expert_id * 3 + 1] = 0;
-      problem_sizes[expert_id * 3 + 2] = 0;      
+      problem_sizes[expert_id * 3 + 2] = 0;
     }
   }
 };
@@ -217,7 +205,7 @@ struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigHighMH20> {
   int* problem_sizes{nullptr};
 
   Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor() = default;
-  Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor(int* _problem_sizes): problem_sizes(_problem_sizes) {}
+  Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor(int* _problem_sizes) : problem_sizes(_problem_sizes) {}
 
   void CUTE_DEVICE operator()(int64_t expert_id, int m, int n, int k) {
     if (m > 96) {
@@ -227,7 +215,7 @@ struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigHighMH20> {
     } else {
       problem_sizes[expert_id * 3 + 0] = 0;
       problem_sizes[expert_id * 3 + 1] = 0;
-      problem_sizes[expert_id * 3 + 2] = 0;      
+      problem_sizes[expert_id * 3 + 2] = 0;
     }
   }
 };
@@ -237,22 +225,22 @@ struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigHighMHx00> {
   int* problem_sizes{nullptr};
 
   Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor() = default;
-  Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor(int* _problem_sizes): problem_sizes(_problem_sizes) {}
+  Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor(int* _problem_sizes) : problem_sizes(_problem_sizes) {}
 
   void CUTE_DEVICE operator()(int64_t expert_id, int m, int n, int k) {
-    if (m >= 128) {
+    if (m > 64) {
       problem_sizes[expert_id * 3 + 0] = m;
       problem_sizes[expert_id * 3 + 1] = n;
       problem_sizes[expert_id * 3 + 2] = k;
     } else {
       problem_sizes[expert_id * 3 + 0] = 0;
       problem_sizes[expert_id * 3 + 1] = 0;
-      problem_sizes[expert_id * 3 + 2] = 0;      
+      problem_sizes[expert_id * 3 + 2] = 0;
     }
   }
 };
 
-template<
+template <
     typename OffsetFunctor,
     typename ScaleLayoutFunctor,
     typename LowMProblemSizeFilterFunctor,
@@ -277,4 +265,4 @@ __global__ void groupedGemmPreComputeKernel(
   hm_psf_functor(expert_id, m, n, k);
 }
 
-} // namespace expert_specialization
+}  // namespace expert_specialization

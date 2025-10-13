@@ -1,5 +1,6 @@
-#include <tuple>
 #include <torch/all.h>
+
+#include <tuple>
 
 #include "es_fp8_blockwise_launcher.cuh"
 
@@ -63,27 +64,96 @@ void es_fp8_blockwise_scaled_grouped_mm(
 
   torch::Tensor layout_sfa = torch::empty({num_experts, 5}, options_int32);
   torch::Tensor layout_sfb = torch::empty({num_experts, 5}, options_int32);
-  
+
   torch::Tensor lm_problem_sizes = torch::empty({num_experts, 3}, options_int32);
   torch::Tensor mm_problem_sizes = torch::empty({num_experts, 3}, options_int32);
   torch::Tensor hm_problem_sizes = torch::empty({num_experts, 3}, options_int32);
-  expert_specialization::es_sm90_fp8_blockwise_scaled_group_mm_pre_compute(
-    out_ptrs, a_ptrs, b_ptrs, a_scales_ptrs, b_scales_ptrs, layout_sfa, layout_sfb,
-    lm_problem_sizes, mm_problem_sizes, hm_problem_sizes,
-    output, a, b, scales_a, scales_b, problem_sizes, expert_offsets
-  );
+
+  const std::string H20_device_type_str("NVIDIA H20");
+  bool is_h20_device = std::string(at::cuda::getCurrentDeviceProperties()->name) == H20_device_type_str;
+  at::cuda::CUDAGuard device_guard{(char)a.get_device()};
+  cudaStream_t stream = at::cuda::getCurrentCUDAStream(a.get_device());
+
+  if (output.dtype() == torch::kBFloat16) {
+    expert_specialization::es_sm90_fp8_blockwise_scaled_group_mm_pre_compute<cutlass::bfloat16_t>(
+        out_ptrs,
+        a_ptrs,
+        b_ptrs,
+        a_scales_ptrs,
+        b_scales_ptrs,
+        layout_sfa,
+        layout_sfb,
+        lm_problem_sizes,
+        mm_problem_sizes,
+        hm_problem_sizes,
+        output,
+        a,
+        b,
+        scales_a,
+        scales_b,
+        problem_sizes,
+        expert_offsets,
+        is_h20_device,
+        stream);
+  } else if (output.dtype() == torch::kFloat16) {
+    expert_specialization::es_sm90_fp8_blockwise_scaled_group_mm_pre_compute<cutlass::half_t>(
+        out_ptrs,
+        a_ptrs,
+        b_ptrs,
+        a_scales_ptrs,
+        b_scales_ptrs,
+        layout_sfa,
+        layout_sfb,
+        lm_problem_sizes,
+        mm_problem_sizes,
+        hm_problem_sizes,
+        output,
+        a,
+        b,
+        scales_a,
+        scales_b,
+        problem_sizes,
+        expert_offsets,
+        is_h20_device,
+        stream);
+  } else {
+    TORCH_CHECK(false, "Invalid output type (must be float16 or bfloat16)");
+  }
+
   if (output.dtype() == torch::kBFloat16) {
     expert_specialization::es_sm90_fp8_blockwise_scaled_group_mm_distpatch_out_dtype<cutlass::bfloat16_t>(
-      out_ptrs, a_ptrs, b_ptrs, a_scales_ptrs, b_scales_ptrs,
-      stride_a, stride_b, stride_d, layout_sfa, layout_sfb,
-      lm_problem_sizes, mm_problem_sizes, hm_problem_sizes
-    );
+        out_ptrs,
+        a_ptrs,
+        b_ptrs,
+        a_scales_ptrs,
+        b_scales_ptrs,
+        stride_a,
+        stride_b,
+        stride_d,
+        layout_sfa,
+        layout_sfb,
+        lm_problem_sizes,
+        mm_problem_sizes,
+        hm_problem_sizes,
+        is_h20_device,
+        stream);
   } else if (output.dtype() == torch::kFloat16) {
     expert_specialization::es_sm90_fp8_blockwise_scaled_group_mm_distpatch_out_dtype<cutlass::half_t>(
-      out_ptrs, a_ptrs, b_ptrs, a_scales_ptrs, b_scales_ptrs,
-      stride_a, stride_b, stride_d, layout_sfa, layout_sfb,
-      lm_problem_sizes, mm_problem_sizes, hm_problem_sizes
-    );
+        out_ptrs,
+        a_ptrs,
+        b_ptrs,
+        a_scales_ptrs,
+        b_scales_ptrs,
+        stride_a,
+        stride_b,
+        stride_d,
+        layout_sfa,
+        layout_sfb,
+        lm_problem_sizes,
+        mm_problem_sizes,
+        hm_problem_sizes,
+        is_h20_device,
+        stream);
   } else {
     TORCH_CHECK(false, "Invalid output type (must be float16 or bfloat16)");
   }

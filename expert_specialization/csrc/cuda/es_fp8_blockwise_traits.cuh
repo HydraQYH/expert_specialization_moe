@@ -2,26 +2,26 @@
 
 // Misc
 #include "cute/tensor.hpp"
-#include "cutlass/cutlass.h"
 #include "cutlass/arch/arch.h"
 #include "cutlass/arch/mma.h"
-#include "cutlass/numeric_size.h"
-#include "cutlass/numeric_conversion.h"
-#include "cutlass/layout/layout.h"
-#include "cutlass/gemm/dispatch_policy.hpp"
-#include "cutlass/epilogue/dispatch_policy.hpp"
+#include "cutlass/cutlass.h"
 #include "cutlass/detail/blockwise_scale_layout.hpp"
+#include "cutlass/epilogue/dispatch_policy.hpp"
+#include "cutlass/gemm/dispatch_policy.hpp"
 #include "cutlass/gemm/group_array_problem_shape.hpp"
+#include "cutlass/layout/layout.h"
+#include "cutlass/numeric_conversion.h"
+#include "cutlass/numeric_size.h"
 
 // Collective Builder
-#include "cutlass/gemm/collective/collective_builder.hpp"
+#include "cutlass/epilogue/collective/collective_builder.hpp"
 #include "cutlass/epilogue/fusion/sm90_callbacks_tma_warpspecialized.hpp"
 #include "cutlass/epilogue/thread/activation.h"
-#include "cutlass/epilogue/collective/collective_builder.hpp"
+#include "cutlass/gemm/collective/collective_builder.hpp"
 
 // Integration
-#include "cutlass/gemm/kernel/gemm_universal.hpp"
 #include "cutlass/gemm/device/gemm_universal_adapter.h"
+#include "cutlass/gemm/kernel/gemm_universal.hpp"
 
 namespace expert_specialization {
 
@@ -35,7 +35,7 @@ struct PerfConfigLowMH20 {
   using KernelSchedule = cutlass::gemm::KernelPtrArrayTmaWarpSpecializedPingpongFP8Blockwise;
   using EpilogueSchedule = cutlass::epilogue::PtrArrayTmaWarpSpecializedPingpong;
   using ScaleConfig =
-    cutlass::detail::Sm90BlockwiseScaleConfig<128, 1, 128, cute::GMMA::Major::K, cute::GMMA::Major::K>;
+      cutlass::detail::Sm90BlockwiseScaleConfig<128, 1, 128, cute::GMMA::Major::K, cute::GMMA::Major::K>;
   using LayoutSFA = decltype(ScaleConfig::deduce_layoutSFA());
   using LayoutSFB = decltype(ScaleConfig::deduce_layoutSFB());
 };
@@ -48,7 +48,7 @@ struct PerfConfigLowMHx00 {
   using KernelSchedule = cutlass::gemm::KernelPtrArrayTmaWarpSpecializedCooperativeFP8Blockwise;
   using EpilogueSchedule = cutlass::epilogue::PtrArrayTmaWarpSpecializedCooperative;
   using ScaleConfig =
-    cutlass::detail::Sm90BlockwiseScaleConfig<128, 1, 128, cute::GMMA::Major::K, cute::GMMA::Major::K>;
+      cutlass::detail::Sm90BlockwiseScaleConfig<128, 1, 128, cute::GMMA::Major::K, cute::GMMA::Major::K>;
   using LayoutSFA = decltype(ScaleConfig::deduce_layoutSFA());
   using LayoutSFB = decltype(ScaleConfig::deduce_layoutSFB());
 };
@@ -72,7 +72,7 @@ struct PerfConfigMiddleMHx00 {
   using KernelSchedule = cutlass::gemm::KernelPtrArrayTmaWarpSpecializedCooperativeFP8Blockwise;
   using EpilogueSchedule = cutlass::epilogue::PtrArrayTmaWarpSpecializedCooperative;
   using ScaleConfig =
-    cutlass::detail::Sm90BlockwiseScaleConfig<128, 1, 128, cute::GMMA::Major::K, cute::GMMA::Major::K>;
+      cutlass::detail::Sm90BlockwiseScaleConfig<128, 1, 128, cute::GMMA::Major::K, cute::GMMA::Major::K>;
   using LayoutSFA = decltype(ScaleConfig::deduce_layoutSFA());
   using LayoutSFB = decltype(ScaleConfig::deduce_layoutSFB());
 };
@@ -84,7 +84,7 @@ struct PerfConfigHighMH20 {
   using KernelSchedule = cutlass::gemm::KernelPtrArrayTmaWarpSpecializedPingpongFP8Blockwise;
   using EpilogueSchedule = cutlass::epilogue::PtrArrayTmaWarpSpecializedPingpong;
   using ScaleConfig =
-    cutlass::detail::Sm90BlockwiseScaleConfig<1, 128, 128, cute::GMMA::Major::K, cute::GMMA::Major::K>;
+      cutlass::detail::Sm90BlockwiseScaleConfig<1, 128, 128, cute::GMMA::Major::K, cute::GMMA::Major::K>;
   using LayoutSFA = decltype(ScaleConfig::deduce_layoutSFA());
   using LayoutSFB = decltype(ScaleConfig::deduce_layoutSFB());
 };
@@ -96,12 +96,12 @@ struct PerfConfigHighMHx00 {
   using KernelSchedule = cutlass::gemm::KernelPtrArrayTmaWarpSpecializedCooperativeFP8Blockwise;
   using EpilogueSchedule = cutlass::epilogue::PtrArrayTmaWarpSpecializedCooperative;
   using ScaleConfig =
-    cutlass::detail::Sm90BlockwiseScaleConfig<1, 128, 128, cute::GMMA::Major::K, cute::GMMA::Major::K>;
+      cutlass::detail::Sm90BlockwiseScaleConfig<1, 128, 128, cute::GMMA::Major::K, cute::GMMA::Major::K>;
   using LayoutSFA = decltype(ScaleConfig::deduce_layoutSFA());
   using LayoutSFB = decltype(ScaleConfig::deduce_layoutSFB());
 };
 
-template<typename OutType, typename LayoutD, typename PerfConfig>
+template <typename OutType, typename LayoutD, typename PerfConfig>
 struct ExpertSpecializationSm90FP8BlockwiseGroupedGemmTraits {
   using ElementA = cutlass::float_e4m3_t;
   using ElementB = cutlass::float_e4m3_t;
@@ -171,4 +171,4 @@ struct ExpertSpecializationSm90FP8BlockwiseGroupedGemmTraits {
   using StrideD = typename Gemm::GemmKernel::InternalStrideD;
 };
 
-}
+}  // namespace expert_specialization
