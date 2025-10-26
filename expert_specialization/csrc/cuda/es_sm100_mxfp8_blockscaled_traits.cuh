@@ -32,10 +32,15 @@ struct MMA1SMConfig {
   using MmaTileShape = Shape<_128,_128,_128>;
   using KernelSchedule = cutlass::gemm::KernelPtrArrayTmaWarpSpecialized1SmMxf8f6f4Sm100;
   using EpilogueSchedule = cutlass::epilogue::PtrArrayTmaWarpSpecialized1Sm;
+  const static dim3 preferred_cluster;
+  const static dim3 fallback_cluster;
 };
+const dim3 MMA1SMConfig::preferred_cluster(1, 4, 1);
+const dim3 MMA1SMConfig::fallback_cluster(1, 2, 1);
 
-template <typename MMAConfig>
+template <typename _MMAConfig>
 struct ExpertSpecializationSm100MXFP8BlockscaledGroupedGemmTraits {
+  using MMAConfig = _MMAConfig;
   using ElementInput = cutlass::float_e4m3_t;
   using ElementOutput = cutlass::bfloat16_t;
   using ProblemShape = cutlass::gemm::GroupProblemShape<Shape<int,int,int>>;
@@ -105,6 +110,15 @@ struct ExpertSpecializationSm100MXFP8BlockscaledGroupedGemmTraits {
       CollectiveEpilogue
   >;
   using Gemm = cutlass::gemm::device::GemmUniversalAdapter<GemmKernel>;
+
+  using ElementSF = typename Gemm::GemmKernel::ElementSF;
+  using StrideA = typename Gemm::GemmKernel::InternalStrideA;
+  using StrideB = typename Gemm::GemmKernel::InternalStrideB;
+  using StrideC = typename Gemm::GemmKernel::InternalStrideC;
+  using StrideD = typename Gemm::GemmKernel::InternalStrideD;
+  using LayoutSFA = typename Gemm::GemmKernel::CollectiveMainloop::InternalLayoutSFA;
+  using LayoutSFB = typename Gemm::GemmKernel::CollectiveMainloop::InternalLayoutSFB;
+  using Sm1xxBlkScaledConfig =  typename Gemm::GemmKernel::CollectiveMainloop::Sm1xxBlkScaledConfig;
 };
 
 }  // namespace expert_specialization

@@ -49,8 +49,11 @@ def get_extensions():
             "-std=c++17",
             "--generate-code=arch=compute_90a,code=[sm_90a]",
             "--generate-code=arch=compute_90a,code=[compute_90a]",
+            "--generate-code=arch=compute_100a,code=[sm_100a]",
+            "--generate-code=arch=compute_100a,code=[compute_100a]",
             "-DCUTLASS_ENABLE_TENSOR_CORE_MMA=1",
             "-DCUTLASS_ENABLE_GDC_FOR_SM90=1",    # Enable PDL
+            "-DCUTLASS_ENABLE_GDC_FOR_SM100=1",    # Enable PDL
             "-DCUTLASS_DEBUG_TRACE_LEVEL=0",
             "--expt-relaxed-constexpr",
             "--expt-extended-lambda",
