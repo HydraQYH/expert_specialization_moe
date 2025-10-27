@@ -42,6 +42,7 @@ def get_extensions():
         ],
         "nvcc": [
             f"-I{os.path.dirname(os.path.abspath(__file__))}/third_party/cutlass/include",
+            f"-I{os.path.dirname(os.path.abspath(__file__))}/third_party/cutlass/tools/util/include",
             "-O3" if not debug_mode else "-O0",
             "-DNDEBUG",
             "-Xcompiler",
