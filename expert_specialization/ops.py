@@ -27,3 +27,16 @@ def es_fp8_blockwise_scaled_grouped_mm(
         problem_sizes,
         expert_offsets
     )
+
+def es_sm100_mxfp8_blockscaled_grouped_mm(
+    output,
+    a,
+    b,
+    sfa,
+    sfb,
+    problem_sizes,
+    expert_offsets
+):
+    torch.ops.expert_specialization.es_sm100_mxfp8_blockscaled_grouped_mm.default(
+        a, b, sfa, sfb, output, problem_sizes, expert_offsets
+    )
