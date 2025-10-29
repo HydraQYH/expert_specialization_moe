@@ -3,13 +3,19 @@
 #include "es_sm100_mxfp8_blockscaled_launcher.cuh"
 
 void es_sm100_mxfp8_blockscaled_grouped_mm(
-    torch::Tensor& a,
-    torch::Tensor& b,
-    torch::Tensor& sfa,
-    torch::Tensor& sfb,
+    const torch::Tensor& a,
+    const torch::Tensor& b,
+    const torch::Tensor& sfa,
+    const torch::Tensor& sfb,
     torch::Tensor& d,
-    torch::Tensor& problem_sizes,
-    torch::Tensor& expert_offsets) {
+    const torch::Tensor& problem_sizes,
+    const torch::Tensor& expert_offsets) {
+  TORCH_CHECK(problem_sizes.dim() == 2, "problem_sizes must be 2D tensor");
+  TORCH_CHECK(problem_sizes.size(1) == 3, "problem_sizes must have shape (num_experts, 3)");
+  TORCH_CHECK(problem_sizes.size(0) == expert_offsets.size(0), "Number of experts in problem_sizes must match expert_offsets");
+  TORCH_CHECK(problem_sizes.dtype() == torch::kInt32, "problem_sizes must be int32");
+  TORCH_CHECK(a.size(1) % 128 == 0, "k should align 128");
+
   auto stream = at::cuda::getCurrentCUDAStream();
   if (d.dtype() == torch::kBFloat16) {
     expert_specialization::es_sm100_mxfp8_blockscaled_group_mm_distpatch_out_dtype<cutlass::bfloat16_t>(

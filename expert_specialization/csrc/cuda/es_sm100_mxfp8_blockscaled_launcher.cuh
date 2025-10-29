@@ -133,7 +133,7 @@ void es_sm100_mxfp8_blockscaled_group_mm(
       {},
       nullptr,
       nullptr,
-      reinterpret_cast<ElementD**>(a_ptrs.data_ptr()),
+      reinterpret_cast<ElementD**>(d_ptrs.data_ptr()),
       reinterpret_cast<StrideD*>(stride_d.data_ptr())
     },
     hw_info,
