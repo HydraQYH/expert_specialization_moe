@@ -33,6 +33,7 @@ void es_sm100_mxfp8_blockscaled_group_mm_pre_compute(
     const torch::Tensor& d,
     const torch::Tensor& problem_sizes,
     const torch::Tensor& expert_offsets,
+    const torch::Tensor& blockscale_offsets,
     cudaStream_t stream
 ) {
   using OffsetFunctor = Sm100Mxfp8BlockScaledOffsetFunctor<GemmTraits>;
@@ -55,6 +56,7 @@ void es_sm100_mxfp8_blockscaled_group_mm_pre_compute(
 
   OffsetFunctor offset_functor(
     reinterpret_cast<int*>(expert_offsets.data_ptr()),
+    reinterpret_cast<int*>(blockscale_offsets.data_ptr()),
     reinterpret_cast<ElementA*>(a.data_ptr()),
     reinterpret_cast<ElementB*>(b.data_ptr()),
     reinterpret_cast<ElementSF*>(sfa.data_ptr()),
@@ -165,6 +167,7 @@ void es_sm100_mxfp8_blockscaled_group_mm_distpatch_out_dtype(
     torch::Tensor& d,
     const torch::Tensor& problem_sizes,
     const torch::Tensor& expert_offsets,
+    const torch::Tensor& blockscale_offsets,
     cudaStream_t stream
 ) {
   int num_experts = (int)problem_sizes.size(0);
@@ -186,7 +189,7 @@ void es_sm100_mxfp8_blockscaled_group_mm_distpatch_out_dtype(
   using GemmTraits = ExpertSpecializationSm100MXFP8BlockscaledGroupedGemmTraits<MMA1SMConfig, OutType>;
   es_sm100_mxfp8_blockscaled_group_mm_pre_compute<GemmTraits>(
     a_ptrs, b_ptrs, sfa_ptrs, sfb_ptrs, d_ptrs, stride_a, stride_b, stride_d, layout_sfa, layout_sfb,
-    a, b, sfa, sfb, d, problem_sizes, expert_offsets, stream
+    a, b, sfa, sfb, d, problem_sizes, expert_offsets, blockscale_offsets, stream
   );
   es_sm100_mxfp8_blockscaled_group_mm<GemmTraits>(
     a_ptrs, b_ptrs, sfa_ptrs, sfb_ptrs, d_ptrs, stride_a, stride_b, stride_d, layout_sfa, layout_sfb, problem_sizes, stream

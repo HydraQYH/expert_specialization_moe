@@ -20,6 +20,7 @@ struct Sm100Mxfp8BlockScaledOffsetFunctor {
   using ElementD = typename GemmTraits::ElementOutput;
   // Input
   int* expert_offsets{nullptr};
+  int* blockscale_offsets{nullptr};
   // Output
   ElementA* a_base{nullptr};
   ElementB* b_base{nullptr};
@@ -35,6 +36,7 @@ struct Sm100Mxfp8BlockScaledOffsetFunctor {
   Sm100Mxfp8BlockScaledOffsetFunctor() = default;
   Sm100Mxfp8BlockScaledOffsetFunctor(
     int* _expert_offsets,
+    int* _blockscale_offsets,
     ElementA* _a_base,
     ElementB* _b_base,
     ElementSF* _sfa_base,
@@ -46,6 +48,7 @@ struct Sm100Mxfp8BlockScaledOffsetFunctor {
     ElementSF** _sfb_offsets,
     ElementD** _d_offsets)
     : expert_offsets{_expert_offsets},
+      blockscale_offsets{_blockscale_offsets},
       a_base(_a_base),
       b_base(_b_base),
       sfa_base(_sfa_base),
@@ -60,10 +63,11 @@ struct Sm100Mxfp8BlockScaledOffsetFunctor {
 
   void CUTE_DEVICE operator()(int64_t expert_id, int m, int n, int k) {
     int64_t expert_offset = static_cast<int64_t>(expert_offsets[expert_id]);
+    int64_t blockscale_offset = static_cast<int64_t>(blockscale_offsets[expert_id]);
     int64_t a_stride = expert_offset * k;
     int64_t b_stride = expert_id * k * n;
     int64_t d_stride = expert_offset * n;
-    int64_t sfa_stride = expert_offset * (k / 32);
+    int64_t sfa_stride = blockscale_offset * (k / 32);
     int64_t sfb_stride = expert_id * n * (k / 32);
 
     a_offsets[expert_id] = a_base + a_stride;

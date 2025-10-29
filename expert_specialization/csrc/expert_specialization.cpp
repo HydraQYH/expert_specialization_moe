@@ -34,20 +34,21 @@ void es_fp8_blockwise_scaled_grouped_mm(
     const torch::Tensor& expert_offsets);
 
 void es_sm100_mxfp8_blockscaled_grouped_mm(
-  const torch::Tensor& a,
-  const torch::Tensor& b,
-  const torch::Tensor& sfa,
-  const torch::Tensor& sfb,
-  torch::Tensor& d,
-  const torch::Tensor& problem_sizes,
-  const torch::Tensor& expert_offsets
+    const torch::Tensor& a,
+    const torch::Tensor& b,
+    const torch::Tensor& sfa,
+    const torch::Tensor& sfb,
+    torch::Tensor& d,
+    const torch::Tensor& problem_sizes,
+    const torch::Tensor& expert_offsets,
+    const torch::Tensor& blockscale_offsets
 );
 
 
 // Defines the operators
 TORCH_LIBRARY(expert_specialization, m) {
   m.def("es_fp8_blockwise_scaled_grouped_mm(Tensor output, Tensor a, Tensor b, Tensor scales_a, Tensor scales_b, Tensor stride_a, Tensor stride_b, Tensor stride_d, Tensor problem_sizes, Tensor expert_offsets) -> ()");
-  m.def("es_sm100_mxfp8_blockscaled_grouped_mm(Tensor a, Tensor b, Tensor sfa, Tensor sfb, Tensor d, Tensor problem_sizes, Tensor expert_offsets) -> ()");
+  m.def("es_sm100_mxfp8_blockscaled_grouped_mm(Tensor a, Tensor b, Tensor sfa, Tensor sfb, Tensor d, Tensor problem_sizes, Tensor expert_offsets, Tensor blockscale_offsets) -> ()");
 }
 
 TORCH_LIBRARY_IMPL(expert_specialization, CUDA, m) {
