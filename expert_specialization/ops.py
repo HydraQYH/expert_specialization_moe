@@ -41,3 +41,15 @@ def es_sm100_mxfp8_blockscaled_grouped_mm(
     torch.ops.expert_specialization.es_sm100_mxfp8_blockscaled_grouped_mm.default(
         a, b, sfa, sfb, output, problem_sizes, expert_offsets, blockscale_offsets
     )
+
+def es_sm100_mxfp8_blockscaled_grouped_quant(
+    input,
+    problem_sizes,
+    expert_offsets,
+    blockscale_offsets,
+    quant_output,
+    scale_factor
+):
+    torch.ops.expert_specialization.es_sm100_mxfp8_blockscaled_grouped_quant.default(
+        input, problem_sizes, expert_offsets, blockscale_offsets, quant_output, scale_factor
+    )
