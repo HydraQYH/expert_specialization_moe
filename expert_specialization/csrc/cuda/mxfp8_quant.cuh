@@ -43,24 +43,27 @@ __global__ void mxfp8_group_quant(
     auto scale_factor_shape = make_shape(ceil_div(m, 128) * 128, k / 32);
     auto scale_factor_layout = tile_to_shape(scale_factor_tile_layout, scale_factor_shape, LayoutRight{});
     // layout<0>(layout<0>(scale_factor_layout))  (_32,_4):(_16,_4) -- static
-    // layout<1>(layout<0>(scale_factor_layout))  M_align_128 / 128 -- dynamic
+    // layout<1>(layout<0>(scale_factor_layout))  M_align_128 / 128 -- dynamic shape dynamic stride
     // layout<0>(layout<1>(scale_factor_layout))  _4:_1 -- static
-    // layout<1>(layout<1>(scale_factor_layout))  K / 32 -- dynamic
+    // layout<1>(layout<1>(scale_factor_layout))  (K / 32) / 4 : _512 -- dynamic shape static stride
 
+    // Reshape to zipped layout for 1D indexing
     auto zipped_scale_factor_layout = make_layout(
       make_layout(layout<0>(layout<0>(scale_factor_layout)), layout<0>(layout<1>(scale_factor_layout))),
       make_layout(layout<1>(layout<0>(scale_factor_layout)), layout<1>(layout<1>(scale_factor_layout)))
-    );
+    );  // (((_32,_4),_4),(M_align_128 / 128,(K / 32) / 4)):(((_16,_4),_1),(?,_512))
 
     auto scale_factor_tensor = make_tensor(
       make_gmem_ptr(scale_factor + blockscale_offset * (k / 32)),
       zipped_scale_factor_layout
     );
 
+    // Used for cases where M is not divisible by 128 (most scenarios).
     auto input_shape = shape(input_tensor);  // (M, K):(K, 1)
     auto identity_tensor = make_identity_tensor(input_shape);
     auto predict_tensor = cute::lazy::transform(identity_tensor, [&](auto c) { return elem_less(c, input_shape); });
 
+    // (128, 128)
     auto tiler = make_shape(Int<BLOCK_M>{}, Int<BLOCK_K>{});
 
     auto tiled_input_tensor = zipped_divide(input_tensor, tiler);  // ((128, 128), (cdiv(M, 128), cdiv(K, 128)))
@@ -74,7 +77,7 @@ __global__ void mxfp8_group_quant(
       auto current_quant_output_tile = tiled_quant_output_tensor(_, blk_offset);
       auto current_predict_tile = tiled_predict_tensor(_, blk_offset);
       auto current_scale_factor_tile = scale_factor_tensor(_, blk_offset);
-
+#ifndef NDEBUG
       if (thread0()) {
         print(tiled_input_tensor);
         printf("\n");
@@ -87,7 +90,7 @@ __global__ void mxfp8_group_quant(
         print(current_scale_factor_tile);
         printf("\n");
       }
-
+#endif
       blk_offset += gridDim.x;
     }
   }
