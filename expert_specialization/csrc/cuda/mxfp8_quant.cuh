@@ -29,17 +29,17 @@ __global__ void mxfp8_group_quant(
     auto input_tensor = make_tensor(
       make_gmem_ptr(input + expert_offset * k),
       make_layout(make_shape(m, k), LayoutRight{})
-    );  // (M, K):(K, 1)
+    );  // (M, K):(K, 1) half_t/bfloat16_t
 
     auto quant_output_tensor = make_tensor(
       make_gmem_ptr(quant_output + expert_offset * k),
       make_layout(make_shape(m, k), LayoutRight{})
-    );  // (M, K):(K, 1)
+    );  // (M, K):(K, 1) cutlass::float_e4m3_t
 
     auto scale_factor_tile_layout = make_layout(
       make_shape(make_shape(_32{}, _4{}), _4{}),
       make_stride(make_stride(_16{}, _4{}), _1{})
-    );
+    );  // Scale Factor Tile: ((_32,_4), _4):((_16,_4), _1)
     auto scale_factor_shape = make_shape(ceil_div(m, 128) * 128, k / 32);
     auto scale_factor_layout = tile_to_shape(scale_factor_tile_layout, scale_factor_shape, LayoutRight{});
     // layout<0>(layout<0>(scale_factor_layout))  (_32,_4):(_16,_4) -- static
@@ -101,7 +101,7 @@ void launch_es_sm100_mxfp8_blockscaled_grouped_quant(
     const torch::Tensor& blockscale_offsets,
     torch::Tensor& quant_output,
     torch::Tensor& scale_factor) {
-
+  // Specialize for Row Major Matrix Coalesced Access
   auto thr_layout = make_layout(
     make_shape(_8{}, _16{}),
     make_stride(_16{}, _1{})
@@ -111,14 +111,15 @@ void launch_es_sm100_mxfp8_blockscaled_grouped_quant(
   );
   using CopyOpG2R = UniversalCopy<cutlass::AlignedArray<T_IN, size(val_layout)>>;
   using CopyAtomG2R = cute::Copy_Atom<CopyOpG2R, T_IN>;
-  auto tiled_copy_g2s = cute::make_tiled_copy(CopyAtomG2R{}, thr_layout, val_layout);
+  auto tiled_copy_g2s = cute::make_tiled_copy(CopyAtomG2R{}, thr_layout, val_layout); // Tiler_MN: (8, 128)
 
   using CopyOpR2G = UniversalCopy<cutlass::AlignedArray<cutlass::float_e4m3_t, size(val_layout)>>;
   using CopyAtomR2G = cute::Copy_Atom<CopyOpR2G, cutlass::float_e4m3_t>;
-  auto tiled_copy_s2g = cute::make_tiled_copy(CopyAtomR2G{}, thr_layout, val_layout);
+  auto tiled_copy_s2g = cute::make_tiled_copy(CopyAtomR2G{}, thr_layout, val_layout); // Tiler_MN: (8, 128)
+#ifndef NDEBUG
   print(tiled_copy_g2s);
   print(tiled_copy_s2g);
-
+#endif
   int max_active_blocks_per_sm = -1;
   AT_CUDA_CHECK(cudaOccupancyMaxActiveBlocksPerMultiprocessor(&max_active_blocks_per_sm,
     mxfp8_group_quant<T_IN>, size(tiled_copy_g2s), 0));
