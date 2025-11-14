@@ -44,7 +44,7 @@ def get_extensions():
             f"-I{os.path.dirname(os.path.abspath(__file__))}/third_party/cutlass/include",
             f"-I{os.path.dirname(os.path.abspath(__file__))}/third_party/cutlass/tools/util/include",
             "-O3" if not debug_mode else "-O0",
-            "-DNDEBUG",
+            "-DNDEBUG" if not debug_mode else "-lineinfo",
             "-Xcompiler",
             "-fPIC",
             "-std=c++17",
@@ -64,7 +64,6 @@ def get_extensions():
     if debug_mode:
         extra_compile_args["cxx"].append("-g")
         extra_compile_args["nvcc"].append("-g")
-        extra_compile_args["nvcc"].append("-G")
         extra_link_args.extend(["-O0", "-g"])
 
     this_dir = os.path.dirname(os.path.curdir)
