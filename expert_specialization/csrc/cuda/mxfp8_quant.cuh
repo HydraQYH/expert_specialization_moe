@@ -3,6 +3,8 @@
 #include <c10/cuda/CUDAGuard.h>
 #include <torch/all.h>
 #include <cuda.h>
+#include <cuda_fp16.h>
+#include <cuda_bf16.h>
 #include "cute/tensor.hpp"
 
 namespace expert_specialization {
@@ -10,6 +12,117 @@ namespace expert_specialization {
 using namespace cute;
 constexpr int BLOCK_M = 128;
 constexpr int BLOCK_K = 128;
+
+// Fast reciprocal.
+inline __device__ float reciprocal_approximate_ftz(float a) {
+  float b;
+  asm volatile("rcp.approx.ftz.f32 %0, %1;\n" : "=f"(b) : "f"(a));
+  return b;
+}
+
+// Convert 4 float2 values into 8 e4m3 values (represented as one uint64_t).
+inline __device__ uint64_t fp32_vec_to_e4m3(float2 (&array)[4]) {
+  union {
+    uint64_t val;
+    __nv_fp8x2_e4m3 elts[4];
+  } u;
+
+  static_assert(sizeof(u.val) == sizeof(u.elts), "Expected to alias uint64_t and __nv_fp8x2_e4m3[4]");
+
+  u.elts[0] = __nv_fp8x2_e4m3(array[0]);
+  u.elts[1] = __nv_fp8x2_e4m3(array[1]);
+  u.elts[2] = __nv_fp8x2_e4m3(array[2]);
+  u.elts[3] = __nv_fp8x2_e4m3(array[3]);
+  return u.val;
+}
+
+template <typename FragmentS>
+__device__ uint64_t cvt_warp_fp16_to_mxfp8(FragmentS fragment_s) {
+  static_assert(size(fragment_s) == 8);
+  constexpr int eles_per_thr = size(fragment_s);
+  using ValType = typename FragmentS::element_type;
+  using VecType = std::conditional_t<std::is_same_v<ValType, __nv_bfloat16>, __nv_bfloat162, __half2>;
+  VecType vec[4];
+  // Assign vals
+  vec[0].x = fragment_s.data()[0];
+  vec[0].y = fragment_s.data()[1];
+  vec[1].x = fragment_s.data()[2];
+  vec[1].y = fragment_s.data()[3];
+  vec[2].x = fragment_s.data()[4];
+  vec[2].y = fragment_s.data()[5];
+  vec[3].x = fragment_s.data()[6];
+  vec[3].y = fragment_s.data()[7];
+
+  auto local_max = __habs2(vec[0]);
+  for (int i = 1; i < eles_per_thr / 2; i++) {
+    local_max = __hmax2(__habs2(vec[i]), local_max);
+  }
+  local_max = __hmax2(__shfl_xor_sync(uint32_t(-1), local_max, 1), local_max);
+  local_max = __hmax2(__shfl_xor_sync(uint32_t(-1), local_max, 2), local_max);
+
+  // Get the final absolute maximum values.
+  
+  float block_max(0.0f);
+  if constexpr (std::is_same_v<ValType, __nv_bfloat16>) {
+    block_max = __bfloat162float(__hmax(local_max.x, local_max.y));
+  } else {
+    block_max = __half2float(__hmax(local_max.x, local_max.y));
+  }
+  // Get the SF (max value of the vector / max value of mxfp8).
+  float sf_val = block_max * reciprocal_approximate_ftz(448.0f);
+  // 8 bits representation of the SF.
+  uint8_t fp8_sf_val;
+
+  __nv_fp8_e8m0 tmp_sf_val;
+  tmp_sf_val.__x = __nv_cvt_float_to_e8m0(sf_val, __NV_SATFINITE, cudaRoundPosInf);
+  sf_val = static_cast<float>(tmp_sf_val);
+  fp8_sf_val = tmp_sf_val.__x;
+  // Get the output scale (reciprocal of the SFValue).
+  float output_scale = block_max != 0.f ? reciprocal_approximate_ftz(sf_val) : 0.0f;
+
+  // Convert the input to float.
+  float2 fp2_vals[eles_per_thr / 2];
+
+#pragma unroll
+  for (int i = 0; i < eles_per_thr / 2; i++) {
+    if constexpr (std::is_same_v<ValType, __half>) {
+      fp2_vals[i] = __half22float2(vec[i]);
+    } else {
+      fp2_vals[i] = __bfloat1622float2(vec[i]);
+    }
+    fp2_vals[i].x *= output_scale;
+    fp2_vals[i].y *= output_scale;
+  }
+
+  // Convert to e4m3 values.
+  uint64_t e4m3_vec = fp32_vec_to_e4m3(fp2_vals);
+
+// #ifndef NDEBUG
+#if 0
+  if (thread0()) {
+    if constexpr (std::is_same_v<ValType, __nv_bfloat16>) {
+      printf("%f, %f, %f, %f, %f, %f, %f, %f\n",
+        __bfloat162float(vec[0].x),
+        __bfloat162float(vec[0].y),
+        __bfloat162float(vec[1].x),
+        __bfloat162float(vec[1].y),
+        __bfloat162float(vec[2].x),
+        __bfloat162float(vec[2].y),
+        __bfloat162float(vec[3].x),
+        __bfloat162float(vec[3].y)
+      );
+    } else {
+      printf("%f, %f, %f, %f\n",
+        __half2float(vec[0].x),
+        __half2float(vec[0].y),
+        __half2float(vec[1].x),
+        __half2float(vec[1].y)
+      );
+    }
+  }
+#endif
+  return e4m3_vec;
+}
 
 template <
     typename TensorS,
@@ -39,8 +152,8 @@ __device__ void mxfp8_group_quant_tile(
   static_assert(size<2>(tiled_tensor_p) == 1);
   static_assert(size<2>(tiled_tensor_d) == 1);
   auto squeeze_tiled_tensor_s = take<0, 2>(tiled_tensor_s);
-  auto squeeze_tiled_tensor_d = take<0, 2>(tiled_tensor_p);
-  auto squeeze_tiled_tensor_p = take<0, 2>(tiled_tensor_d);
+  auto squeeze_tiled_tensor_p = take<0, 2>(tiled_tensor_p);
+  auto squeeze_tiled_tensor_d = take<0, 2>(tiled_tensor_d);
 
   constexpr int tile_loop_count = size<1>(tiled_tensor_s);
 // #ifndef NDEBUG
@@ -63,14 +176,41 @@ __device__ void mxfp8_group_quant_tile(
     auto current_copy_tile_d = tensor<0>(squeeze_tiled_tensor_d(_, t));
 
     // Global to Register copy
-    auto thr_copy = tiled_copy_g2r.get_thread_slice(threadIdx.x);
-    auto thr_tile_s = thr_copy.partition_S(current_copy_tile_s);
-    auto thr_tile_p = thr_copy.partition_S(current_copy_tile_p);
-    auto fragment = make_fragment_like(thr_tile_s);
-    copy_if(tiled_copy_g2r, thr_tile_p, thr_tile_s, fragment);
-#ifndef NDEBUG
+    auto thr_copy_g2r = tiled_copy_g2r.get_thread_slice(threadIdx.x);
+    auto thr_tile_g2r_s = thr_copy_g2r.partition_S(current_copy_tile_s);
+    auto thr_tile_g2r_p = thr_copy_g2r.partition_S(current_copy_tile_p);
+    auto input_fragment = make_fragment_like(thr_tile_g2r_s);
+
+    // CopyG2R & convert & CopyR2G
+    copy_if(tiled_copy_g2r, thr_tile_g2r_p, thr_tile_g2r_s, input_fragment);
+    uint64_t e4m3_vec = cvt_warp_fp16_to_mxfp8(input_fragment);
+
+    // Register to Global copy
+    auto thr_copy_r2g = tiled_copy_r2g.get_thread_slice(threadIdx.x);
+    auto thr_tile_r2g_d = thr_copy_r2g.partition_D(current_copy_tile_d);
+    auto thr_tile_r2g_p = thr_copy_r2g.partition_D(current_copy_tile_p);
+    auto output_fragment = make_fragment_like(thr_tile_r2g_d);
+
+    union {
+      uint64_t val;
+      uint8_t elts[8];
+    } u;
+    u.val = e4m3_vec;
+    output_fragment.data()[0] = cutlass::float_e4m3_t::bitcast(u.elts[0]);
+    output_fragment.data()[1] = cutlass::float_e4m3_t::bitcast(u.elts[1]);
+    output_fragment.data()[2] = cutlass::float_e4m3_t::bitcast(u.elts[2]);
+    output_fragment.data()[3] = cutlass::float_e4m3_t::bitcast(u.elts[3]);
+    output_fragment.data()[4] = cutlass::float_e4m3_t::bitcast(u.elts[4]);
+    output_fragment.data()[5] = cutlass::float_e4m3_t::bitcast(u.elts[5]);
+    output_fragment.data()[6] = cutlass::float_e4m3_t::bitcast(u.elts[6]);
+    output_fragment.data()[7] = cutlass::float_e4m3_t::bitcast(u.elts[7]);
+
+    copy_if(tiled_copy_r2g, thr_tile_r2g_p, output_fragment, thr_tile_r2g_d);
+
+// #ifndef NDEBUG
+#if 0
     if (thread0()) {
-      print(fragment);
+      print_tensor(input_fragment);
       printf("\n");
     }
     break;
