@@ -9,6 +9,14 @@ void es_sm100_mxfp8_blockscaled_grouped_quant(
     const torch::Tensor& blockscale_offsets,
     torch::Tensor& quant_output,
     torch::Tensor& scale_factor) {
+  TORCH_CHECK(input.dim() == 2, "input must be 2D tensor");
+  // TODO: Check input stride
+  TORCH_CHECK(problem_sizes.dim() == 2, "problem_sizes must be 2D tensor");
+
+  auto groups = problem_sizes.size(0);
+  TORCH_CHECK(expert_offsets.dim() == 1 && expert_offsets.size(0) == groups, "problem_sizes must be 2D tensor");
+  TORCH_CHECK(blockscale_offsets.dim() == 1 && blockscale_offsets.size(0) == groups, "problem_sizes must be 2D tensor");
+
   auto stream = at::cuda::getCurrentCUDAStream();
   if (input.dtype() == torch::kBFloat16) {
     expert_specialization::launch_es_sm100_mxfp8_blockscaled_grouped_quant<__nv_bfloat16>(input, problem_sizes, expert_offsets, blockscale_offsets, quant_output, scale_factor);

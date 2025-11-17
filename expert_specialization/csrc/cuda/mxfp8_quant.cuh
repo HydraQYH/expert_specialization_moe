@@ -12,6 +12,7 @@ namespace expert_specialization {
 using namespace cute;
 constexpr int BLOCK_M = 128;
 constexpr int BLOCK_K = 128;
+using ScaleFactorTileLayout = Layout<Shape<Shape<_32, _4>, _4>, Stride<Stride<_16, _4>, _1>>;
 
 // Fast reciprocal.
 inline __device__ float reciprocal_approximate_ftz(float a) {
@@ -20,26 +21,16 @@ inline __device__ float reciprocal_approximate_ftz(float a) {
   return b;
 }
 
-// Convert 4 float2 values into 8 e4m3 values (represented as one uint64_t).
-inline __device__ uint64_t fp32_vec_to_e4m3(float2 (&array)[4]) {
-  union {
-    uint64_t val;
-    __nv_fp8x2_e4m3 elts[4];
-  } u;
+template <typename FragmentS, typename FragmentD>
+__device__ void cvt_warp_fp16_to_mxfp8(FragmentS& fragment_s, FragmentD& fragment_d) {
+  using FragmentSLayout = typename FragmentS::layout_type;
+  using FragmentDLayout = typename FragmentD::layout_type;
+  FragmentSLayout fragment_s_layout;
+  FragmentDLayout fragment_d_layout;
+  static_assert(is_static<FragmentSLayout>::value && size(fragment_s_layout) == 8);
+  static_assert(is_static<FragmentDLayout>::value && size(fragment_d_layout) == 8);
 
-  static_assert(sizeof(u.val) == sizeof(u.elts), "Expected to alias uint64_t and __nv_fp8x2_e4m3[4]");
-
-  u.elts[0] = __nv_fp8x2_e4m3(array[0]);
-  u.elts[1] = __nv_fp8x2_e4m3(array[1]);
-  u.elts[2] = __nv_fp8x2_e4m3(array[2]);
-  u.elts[3] = __nv_fp8x2_e4m3(array[3]);
-  return u.val;
-}
-
-template <typename FragmentS>
-__device__ uint64_t cvt_warp_fp16_to_mxfp8(FragmentS fragment_s) {
-  static_assert(size(fragment_s) == 8);
-  constexpr int eles_per_thr = size(fragment_s);
+  constexpr int eles_per_thr = 8;
   using ValType = typename FragmentS::element_type;
   using VecType = std::conditional_t<std::is_same_v<ValType, __nv_bfloat16>, __nv_bfloat162, __half2>;
   VecType vec[4];
@@ -61,7 +52,6 @@ __device__ uint64_t cvt_warp_fp16_to_mxfp8(FragmentS fragment_s) {
   local_max = __hmax2(__shfl_xor_sync(uint32_t(-1), local_max, 2), local_max);
 
   // Get the final absolute maximum values.
-  
   float block_max(0.0f);
   if constexpr (std::is_same_v<ValType, __nv_bfloat16>) {
     block_max = __bfloat162float(__hmax(local_max.x, local_max.y));
@@ -93,9 +83,22 @@ __device__ uint64_t cvt_warp_fp16_to_mxfp8(FragmentS fragment_s) {
     fp2_vals[i].x *= output_scale;
     fp2_vals[i].y *= output_scale;
   }
-
-  // Convert to e4m3 values.
-  uint64_t e4m3_vec = fp32_vec_to_e4m3(fp2_vals);
+  union {
+    uint8_t bytes[8];
+    __nv_fp8x2_e4m3 elts[4];
+  } u;
+  u.elts[0] = __nv_fp8x2_e4m3(fp2_vals[0]);
+  u.elts[1] = __nv_fp8x2_e4m3(fp2_vals[1]);
+  u.elts[2] = __nv_fp8x2_e4m3(fp2_vals[2]);
+  u.elts[3] = __nv_fp8x2_e4m3(fp2_vals[3]);
+  fragment_d.data()[0] = cutlass::float_e4m3_t::bitcast(u.bytes[0]);
+  fragment_d.data()[1] = cutlass::float_e4m3_t::bitcast(u.bytes[1]);
+  fragment_d.data()[2] = cutlass::float_e4m3_t::bitcast(u.bytes[2]);
+  fragment_d.data()[3] = cutlass::float_e4m3_t::bitcast(u.bytes[3]);
+  fragment_d.data()[4] = cutlass::float_e4m3_t::bitcast(u.bytes[4]);
+  fragment_d.data()[5] = cutlass::float_e4m3_t::bitcast(u.bytes[5]);
+  fragment_d.data()[6] = cutlass::float_e4m3_t::bitcast(u.bytes[6]);
+  fragment_d.data()[7] = cutlass::float_e4m3_t::bitcast(u.bytes[7]);
 
 // #ifndef NDEBUG
 #if 0
@@ -121,7 +124,6 @@ __device__ uint64_t cvt_warp_fp16_to_mxfp8(FragmentS fragment_s) {
     }
   }
 #endif
-  return e4m3_vec;
 }
 
 template <
@@ -144,10 +146,12 @@ __device__ void mxfp8_group_quant_tile(
   static_assert(size<0>(tensor_p) == 128 && size<1>(tensor_p) == 128);
 
   using Tiler_MN = typename TiledCopyG2R::Tiler_MN;
+  auto tiler_mn = Tiler_MN{};
+  static_assert(size<0>(tiler_mn) == 8 && size<1>(tiler_mn) == 128);
 
-  auto tiled_tensor_s = tiled_divide(tensor_s, Tiler_MN{});
-  auto tiled_tensor_p = tiled_divide(tensor_p, Tiler_MN{});
-  auto tiled_tensor_d = tiled_divide(tensor_d, Tiler_MN{});
+  auto tiled_tensor_s = tiled_divide(tensor_s, tiler_mn);
+  auto tiled_tensor_p = tiled_divide(tensor_p, tiler_mn);
+  auto tiled_tensor_d = tiled_divide(tensor_d, tiler_mn);
   static_assert(size<2>(tiled_tensor_s) == 1);
   static_assert(size<2>(tiled_tensor_p) == 1);
   static_assert(size<2>(tiled_tensor_d) == 1);
@@ -166,7 +170,7 @@ __device__ void mxfp8_group_quant_tile(
   }
 #endif
 
-  constexpr int rows_in_tile = size<0>(Tiler_MN{});
+  constexpr int rows_in_tile = 8;
   for (int t = 0; t < tile_loop_count; t++) {
     if (t * rows_in_tile >= m) {
       break;
@@ -181,32 +185,16 @@ __device__ void mxfp8_group_quant_tile(
     auto thr_tile_g2r_p = thr_copy_g2r.partition_S(current_copy_tile_p);
     auto input_fragment = make_fragment_like(thr_tile_g2r_s);
 
-    // CopyG2R & convert & CopyR2G
-    copy_if(tiled_copy_g2r, thr_tile_g2r_p, thr_tile_g2r_s, input_fragment);
-    uint64_t e4m3_vec = cvt_warp_fp16_to_mxfp8(input_fragment);
-
     // Register to Global copy
     auto thr_copy_r2g = tiled_copy_r2g.get_thread_slice(threadIdx.x);
     auto thr_tile_r2g_d = thr_copy_r2g.partition_D(current_copy_tile_d);
     auto thr_tile_r2g_p = thr_copy_r2g.partition_D(current_copy_tile_p);
     auto output_fragment = make_fragment_like(thr_tile_r2g_d);
 
-    union {
-      uint64_t val;
-      uint8_t elts[8];
-    } u;
-    u.val = e4m3_vec;
-    output_fragment.data()[0] = cutlass::float_e4m3_t::bitcast(u.elts[0]);
-    output_fragment.data()[1] = cutlass::float_e4m3_t::bitcast(u.elts[1]);
-    output_fragment.data()[2] = cutlass::float_e4m3_t::bitcast(u.elts[2]);
-    output_fragment.data()[3] = cutlass::float_e4m3_t::bitcast(u.elts[3]);
-    output_fragment.data()[4] = cutlass::float_e4m3_t::bitcast(u.elts[4]);
-    output_fragment.data()[5] = cutlass::float_e4m3_t::bitcast(u.elts[5]);
-    output_fragment.data()[6] = cutlass::float_e4m3_t::bitcast(u.elts[6]);
-    output_fragment.data()[7] = cutlass::float_e4m3_t::bitcast(u.elts[7]);
-
+    // CopyG2R & convert & CopyR2G
+    copy_if(tiled_copy_g2r, thr_tile_g2r_p, thr_tile_g2r_s, input_fragment);
+    cvt_warp_fp16_to_mxfp8(input_fragment, output_fragment);
     copy_if(tiled_copy_r2g, thr_tile_r2g_p, output_fragment, thr_tile_r2g_d);
-
 // #ifndef NDEBUG
 #if 0
     if (thread0()) {
@@ -246,10 +234,7 @@ __global__ void mxfp8_group_quant(
       make_layout(make_shape(m, k), LayoutRight{})
     );  // (M, K):(K, 1) cutlass::float_e4m3_t
 
-    auto scale_factor_tile_layout = make_layout(
-      make_shape(make_shape(_32{}, _4{}), _4{}),
-      make_stride(make_stride(_16{}, _4{}), _1{})
-    );  // Scale Factor Tile: ((_32,_4), _4):((_16,_4), _1)
+    ScaleFactorTileLayout scale_factor_tile_layout{}; // ((_32,_4), _4):((_16,_4), _1)
     auto scale_factor_shape = make_shape(ceil_div(m, 128) * 128, k / 32);
     auto scale_factor_layout = tile_to_shape(scale_factor_tile_layout, scale_factor_shape, LayoutRight{});
     // layout<0>(layout<0>(scale_factor_layout))  (_32,_4):(_16,_4) -- static
