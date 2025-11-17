@@ -22,7 +22,7 @@ inline __device__ float reciprocal_approximate_ftz(float a) {
 }
 
 template <typename FragmentS, typename FragmentD>
-__device__ void cvt_warp_fp16_to_mxfp8(FragmentS& fragment_s, FragmentD& fragment_d) {
+__device__ uint8_t cvt_warp_fp16_to_mxfp8(FragmentS& fragment_s, FragmentD& fragment_d) {
   using FragmentSLayout = typename FragmentS::layout_type;
   using FragmentDLayout = typename FragmentD::layout_type;
   FragmentSLayout fragment_s_layout;
@@ -124,23 +124,28 @@ __device__ void cvt_warp_fp16_to_mxfp8(FragmentS& fragment_s, FragmentD& fragmen
     }
   }
 #endif
+  return fp8_sf_val;
 }
 
 template <
     typename TensorS,
     typename TensorP,
     typename TensorD,
+    typename TensorSharedSF,
     typename TensorSF,
     typename TiledCopyG2R,
-    typename TiledCopyR2G>
+    typename TiledCopyR2G,
+    typename TiledCopyR2S>
 __device__ void mxfp8_group_quant_tile(
     TensorS tensor_s,
     TensorP tensor_p,
     TensorD tensor_d,
+    TensorSharedSF tensor_shared_sf,
     TensorSF tensor_sf,
     int m,
     TiledCopyG2R tiled_copy_g2r,
-    TiledCopyR2G tiled_copy_r2g) {
+    TiledCopyR2G tiled_copy_r2g,
+    TiledCopyR2S tiled_copy_r2s) {
   static_assert(size<0>(tensor_s) == 128 && size<1>(tensor_s) == 128 && stride<1>(tensor_s) == 1);
   static_assert(size<0>(tensor_d) == 128 && size<1>(tensor_d) == 128 && stride<1>(tensor_d) == 1);
   static_assert(size<0>(tensor_p) == 128 && size<1>(tensor_p) == 128);
@@ -159,17 +164,26 @@ __device__ void mxfp8_group_quant_tile(
   auto squeeze_tiled_tensor_p = take<0, 2>(tiled_tensor_p);
   auto squeeze_tiled_tensor_d = take<0, 2>(tiled_tensor_d);
 
+  using SF_Tiler_MN = typename TiledCopyR2S::Tiler_MN;
+  auto sf_tiler_mn = SF_Tiler_MN{};
+  static_assert(size<0>(sf_tiler_mn) == 8 && size<1>(sf_tiler_mn) == 4);
+  auto tiled_tensor_sf = tiled_divide(tensor_sf, sf_tiler_mn);
+  auto tiled_tensor_shared_sf = tiled_divide(tensor_shared_sf, sf_tiler_mn);
+  auto squeeze_tiled_tensor_sf = take<0, 2>(tiled_tensor_sf);
+  auto squeeze_tiled_tensor_shared_sf = take<0, 2>(tiled_tensor_shared_sf);
+
   constexpr int tile_loop_count = size<1>(tiled_tensor_s);
 // #ifndef NDEBUG
 #if 0
   if (thread0()) {
-    print(tensor_s);
+    print("tile_loop_count: %d\n", tile_loop_count);
+    print(tiled_tensor_sf);
     printf("\n");
-    print(tiled_tensor_s);
+    print(tiled_tensor_shared_sf);
     printf("\n");
   }
 #endif
-
+  clear(squeeze_tiled_tensor_shared_sf);
   constexpr int rows_in_tile = 8;
   for (int t = 0; t < tile_loop_count; t++) {
     if (t * rows_in_tile >= m) {
@@ -178,6 +192,8 @@ __device__ void mxfp8_group_quant_tile(
     auto current_copy_tile_s = tensor<0>(squeeze_tiled_tensor_s(_, t));
     auto current_copy_tile_p = tensor<0>(squeeze_tiled_tensor_p(_, t));
     auto current_copy_tile_d = tensor<0>(squeeze_tiled_tensor_d(_, t));
+    auto current_copy_tile_sf = tensor<0>(squeeze_tiled_tensor_sf(_, t));
+    auto current_copy_tile_shared_sf = tensor<0>(squeeze_tiled_tensor_shared_sf(_, t));
 
     // Global to Register copy
     auto thr_copy_g2r = tiled_copy_g2r.get_thread_slice(threadIdx.x);
@@ -191,22 +207,31 @@ __device__ void mxfp8_group_quant_tile(
     auto thr_tile_r2g_p = thr_copy_r2g.partition_D(current_copy_tile_p);
     auto output_fragment = make_fragment_like(thr_tile_r2g_d);
 
+    // Register to Shared copy
+    auto thr_copy_r2s = tiled_copy_r2s.get_thread_slice(threadIdx.x / 4);
+    auto thr_tile_r2s_shared_sf = thr_copy_r2s.partition_D(current_copy_tile_shared_sf);
+    auto shared_sf_fragment = make_fragment_like(thr_tile_r2s_shared_sf);
+
     // CopyG2R & convert & CopyR2G
     copy_if(tiled_copy_g2r, thr_tile_g2r_p, thr_tile_g2r_s, input_fragment);
-    cvt_warp_fp16_to_mxfp8(input_fragment, output_fragment);
+    uint8_t fp8_sf_val = cvt_warp_fp16_to_mxfp8(input_fragment, output_fragment);
     copy_if(tiled_copy_r2g, thr_tile_r2g_p, output_fragment, thr_tile_r2g_d);
-// #ifndef NDEBUG
-#if 0
-    if (thread0()) {
-      print_tensor(input_fragment);
-      printf("\n");
+    shared_sf_fragment.data()[0] = cutlass::float_ue8m0_t::bitcast(fp8_sf_val);
+    if (threadIdx.x % 4 == 0) {
+      copy(tiled_copy_r2s, shared_sf_fragment, thr_tile_r2s_shared_sf);
     }
-    break;
+    __syncthreads();
+#ifndef NDEBUG
+    auto thr_tile_r2s_sf = thr_copy_r2s.partition_D(current_copy_tile_sf);
+    if (threadIdx.x % 4 == 0) {
+      copy(tiled_copy_r2s, shared_sf_fragment, thr_tile_r2s_sf);
+    }
+    __syncthreads();
 #endif
   }
 }
 
-template <typename T_IN, typename TiledCopyG2R, typename TiledCopyR2G>
+template <typename T_IN, typename TiledCopyG2R, typename TiledCopyR2G, typename TiledCopyR2S>
 __global__ void mxfp8_group_quant(
     const T_IN* input,
     const int* problem_sizes,
@@ -216,7 +241,14 @@ __global__ void mxfp8_group_quant(
     cutlass::float_ue8m0_t* scale_factor,
     int groups,
     TiledCopyG2R tiled_copy_g2r,
-    TiledCopyR2G tiled_copy_r2g) {
+    TiledCopyR2G tiled_copy_r2g,
+    TiledCopyR2S tiled_copy_r2s) {
+  __shared__ __align__(512) uint8_t shared_memory[512];
+  ScaleFactorTileLayout scale_factor_tile_layout{};
+  auto scale_factor_shared = make_tensor(
+    make_smem_ptr(shared_memory),
+    scale_factor_tile_layout
+  );
   // Group-wise Schedule
   for (int g = 0; g < groups; g++) {
     int m = problem_sizes[g * 3 + 0];
@@ -234,7 +266,7 @@ __global__ void mxfp8_group_quant(
       make_layout(make_shape(m, k), LayoutRight{})
     );  // (M, K):(K, 1) cutlass::float_e4m3_t
 
-    ScaleFactorTileLayout scale_factor_tile_layout{}; // ((_32,_4), _4):((_16,_4), _1)
+    // ScaleFactorTileLayout scale_factor_tile_layout{}; // ((_32,_4), _4):((_16,_4), _1)
     auto scale_factor_shape = make_shape(ceil_div(m, 128) * 128, k / 32);
     auto scale_factor_layout = tile_to_shape(scale_factor_tile_layout, scale_factor_shape, LayoutRight{});
     // layout<0>(layout<0>(scale_factor_layout))  (_32,_4):(_16,_4) -- static
@@ -291,16 +323,21 @@ __global__ void mxfp8_group_quant(
           decltype(current_input_tile),
           decltype(current_predict_tile),
           decltype(current_quant_output_tile),
+          decltype(scale_factor_shared),
           decltype(current_scale_factor_tile),
           TiledCopyG2R,
-          TiledCopyR2G>(
+          TiledCopyR2G,
+          TiledCopyR2S>(
         current_input_tile,
         current_predict_tile,
         current_quant_output_tile,
+        scale_factor_shared,
         current_scale_factor_tile,
         m,
         tiled_copy_g2r,
-        tiled_copy_r2g);
+        tiled_copy_r2g,
+        tiled_copy_r2s
+      );
       blk_offset += gridDim.x;
     }
   }
@@ -330,19 +367,29 @@ void launch_es_sm100_mxfp8_blockscaled_grouped_quant(
   using CopyOpR2G = UniversalCopy<cutlass::AlignedArray<cutlass::float_e4m3_t, size(val_layout)>>;
   using CopyAtomR2G = cute::Copy_Atom<CopyOpR2G, cutlass::float_e4m3_t>;
   auto tiled_copy_r2g = cute::make_tiled_copy(CopyAtomR2G{}, thr_layout, val_layout); // Tiler_MN: (8, 128)
-// #ifndef NDEBUG
-#if 0
-  print(tiled_copy_g2r);
-  print(tiled_copy_r2g);
+
+  auto r2s_thr_layout = make_layout(
+    make_shape(_8{}, _4{}),
+    make_stride(_4{}, _1{})
+  );
+  auto r2s_val_layout = make_layout(
+    make_shape(_1{}, _1{})
+  );
+  using CopyOpR2S = UniversalCopy<cutlass::AlignedArray<cutlass::float_ue8m0_t, size(r2s_val_layout)>>;
+  using CopyAtomR2S = cute::Copy_Atom<CopyOpR2S, cutlass::float_ue8m0_t>;
+  auto tiled_copy_r2s = cute::make_tiled_copy(CopyAtomR2S{}, r2s_thr_layout, r2s_val_layout); // Tiler_MN: (8, 4)
+#ifndef NDEBUG
+// #if 0
+  print(tiled_copy_r2s);
 #endif
   int max_active_blocks_per_sm = -1;
   AT_CUDA_CHECK(cudaOccupancyMaxActiveBlocksPerMultiprocessor(&max_active_blocks_per_sm,
-    mxfp8_group_quant<T_IN, decltype(tiled_copy_g2r), decltype(tiled_copy_r2g)>, 128, 0));
+    mxfp8_group_quant<T_IN, decltype(tiled_copy_g2r), decltype(tiled_copy_r2g), decltype(tiled_copy_r2s)>, 128, 0));
   dim3 grid(at::cuda::getCurrentDeviceProperties()->multiProcessorCount * max_active_blocks_per_sm, 1, 1);
   dim3 block(128, 1, 1);
   int num_experts = (int)problem_sizes.size(0);
   auto stream = at::cuda::getCurrentCUDAStream();
-  mxfp8_group_quant<T_IN, decltype(tiled_copy_g2r), decltype(tiled_copy_r2g)><<<grid, block, 0, stream>>>(
+  mxfp8_group_quant<T_IN, decltype(tiled_copy_g2r), decltype(tiled_copy_r2g), decltype(tiled_copy_r2s)><<<grid, block, 0, stream>>>(
     reinterpret_cast<const T_IN*>(input.data_ptr()),
     reinterpret_cast<const int*>(problem_sizes.data_ptr()),
     reinterpret_cast<const int*>(expert_offsets.data_ptr()),
@@ -351,7 +398,8 @@ void launch_es_sm100_mxfp8_blockscaled_grouped_quant(
     reinterpret_cast<cutlass::float_ue8m0_t*>(scale_factor.data_ptr()),
     num_experts,
     tiled_copy_g2r,
-    tiled_copy_r2g
+    tiled_copy_r2g,
+    tiled_copy_r2s
   );
 }
 
