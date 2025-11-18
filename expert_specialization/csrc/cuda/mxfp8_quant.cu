@@ -10,7 +10,8 @@ void es_sm100_mxfp8_blockscaled_grouped_quant(
     torch::Tensor& quant_output,
     torch::Tensor& scale_factor) {
   TORCH_CHECK(input.dim() == 2, "input must be 2D tensor");
-  // TODO: Check input stride
+  TORCH_CHECK(input.size(1) % 128 == 0, "k must align to 128");
+  TORCH_CHECK(input.strides()[1] == 1, "input must be row major");
   TORCH_CHECK(problem_sizes.dim() == 2, "problem_sizes must be 2D tensor");
 
   auto groups = problem_sizes.size(0);
