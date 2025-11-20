@@ -1,6 +1,6 @@
 #include <torch/all.h>
 
-#include "mxfp8_quant.cuh"
+#include "mxfp8_quant_vec.cuh"
 
 void es_sm100_mxfp8_blockscaled_grouped_quant(
     const torch::Tensor& input,

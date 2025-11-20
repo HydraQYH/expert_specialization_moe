@@ -16,9 +16,9 @@ constexpr uint32_t THREAD_BLOCK_SIZE = 128;
 constexpr uint32_t WARP_SIZE = 32;
 constexpr int BLOCK_M = 128;
 constexpr int BLOCK_K = 128;
-using ThrLayout = Layout<Shape<_8, _16>, Stride<_16, _1>>;
-using ValLayout = Layout<Shape<_1, _8>>;
-using SfR2SThrLayout = Layout<Shape<_8, _4>, Stride<_4, _1>>;
+using ThrLayout = Layout<Shape<_16, _8>, Stride<_8, _1>>;
+using ValLayout = Layout<Shape<_1, _16>>;
+using SfR2SThrLayout = Layout<Shape<_16, _4>, Stride<_4, _1>>;
 using SfR2SValLayout = Layout<Shape<_1, _1>>;
 using ScaleFactorTileLayout = Layout<Shape<Shape<_32, _4>, _4>, Stride<Stride<_16, _4>, _1>>;
 
@@ -35,29 +35,36 @@ __inline__ __device__ uint8_t cvt_warp_fp16_to_mxfp8(FragmentS& fragment_s, Frag
   using FragmentDLayout = typename FragmentD::layout_type;
   FragmentSLayout fragment_s_layout;
   FragmentDLayout fragment_d_layout;
-  static_assert(is_static<FragmentSLayout>::value && size(fragment_s_layout) == 8);
-  static_assert(is_static<FragmentDLayout>::value && size(fragment_d_layout) == 8);
+  static_assert(is_static<FragmentSLayout>::value && size(fragment_s_layout) == 16);
+  static_assert(is_static<FragmentDLayout>::value && size(fragment_d_layout) == 16);
 
-  constexpr int eles_per_thr = 8;
+  constexpr int eles_per_thr = 16;
   using ValType = typename FragmentS::element_type;
   using VecType = std::conditional_t<std::is_same_v<ValType, __nv_bfloat16>, __nv_bfloat162, __half2>;
-  VecType vec[4];
+  VecType vec[8];
   // Assign vals
-  vec[0].x = fragment_s.data()[0];
-  vec[0].y = fragment_s.data()[1];
-  vec[1].x = fragment_s.data()[2];
-  vec[1].y = fragment_s.data()[3];
-  vec[2].x = fragment_s.data()[4];
-  vec[2].y = fragment_s.data()[5];
-  vec[3].x = fragment_s.data()[6];
-  vec[3].y = fragment_s.data()[7];
+  vec[0].x = fragment_s(Int<0>{});
+  vec[0].y = fragment_s(Int<1>{});
+  vec[1].x = fragment_s(Int<2>{});
+  vec[1].y = fragment_s(Int<3>{});
+  vec[2].x = fragment_s(Int<4>{});
+  vec[2].y = fragment_s(Int<5>{});
+  vec[3].x = fragment_s(Int<6>{});
+  vec[3].y = fragment_s(Int<7>{});
+  vec[4].x = fragment_s(Int<8>{});
+  vec[4].y = fragment_s(Int<9>{});
+  vec[5].x = fragment_s(Int<10>{});
+  vec[5].y = fragment_s(Int<11>{});
+  vec[6].x = fragment_s(Int<12>{});
+  vec[6].y = fragment_s(Int<13>{});
+  vec[7].x = fragment_s(Int<14>{});
+  vec[7].y = fragment_s(Int<15>{});
 
   auto local_max = __habs2(vec[0]);
   for (int i = 1; i < eles_per_thr / 2; i++) {
     local_max = __hmax2(__habs2(vec[i]), local_max);
   }
   local_max = __hmax2(__shfl_xor_sync(uint32_t(-1), local_max, 1), local_max);
-  local_max = __hmax2(__shfl_xor_sync(uint32_t(-1), local_max, 2), local_max);
 
   // Get the final absolute maximum values.
   float block_max(0.0f);
@@ -92,21 +99,33 @@ __inline__ __device__ uint8_t cvt_warp_fp16_to_mxfp8(FragmentS& fragment_s, Frag
     fp2_vals[i].y *= output_scale;
   }
   union {
-    uint8_t bytes[8];
-    __nv_fp8x2_e4m3 elts[4];
+    uint8_t bytes[16];
+    __nv_fp8x2_e4m3 elts[8];
   } u;
   u.elts[0] = __nv_fp8x2_e4m3(fp2_vals[0]);
   u.elts[1] = __nv_fp8x2_e4m3(fp2_vals[1]);
   u.elts[2] = __nv_fp8x2_e4m3(fp2_vals[2]);
   u.elts[3] = __nv_fp8x2_e4m3(fp2_vals[3]);
-  fragment_d.data()[0] = cutlass::float_e4m3_t::bitcast(u.bytes[0]);
-  fragment_d.data()[1] = cutlass::float_e4m3_t::bitcast(u.bytes[1]);
-  fragment_d.data()[2] = cutlass::float_e4m3_t::bitcast(u.bytes[2]);
-  fragment_d.data()[3] = cutlass::float_e4m3_t::bitcast(u.bytes[3]);
-  fragment_d.data()[4] = cutlass::float_e4m3_t::bitcast(u.bytes[4]);
-  fragment_d.data()[5] = cutlass::float_e4m3_t::bitcast(u.bytes[5]);
-  fragment_d.data()[6] = cutlass::float_e4m3_t::bitcast(u.bytes[6]);
-  fragment_d.data()[7] = cutlass::float_e4m3_t::bitcast(u.bytes[7]);
+  u.elts[4] = __nv_fp8x2_e4m3(fp2_vals[4]);
+  u.elts[5] = __nv_fp8x2_e4m3(fp2_vals[5]);
+  u.elts[6] = __nv_fp8x2_e4m3(fp2_vals[6]);
+  u.elts[7] = __nv_fp8x2_e4m3(fp2_vals[7]);
+  fragment_d(Int<0>{}) = cutlass::float_e4m3_t::bitcast(u.bytes[0]);
+  fragment_d(Int<1>{}) = cutlass::float_e4m3_t::bitcast(u.bytes[1]);
+  fragment_d(Int<2>{}) = cutlass::float_e4m3_t::bitcast(u.bytes[2]);
+  fragment_d(Int<3>{}) = cutlass::float_e4m3_t::bitcast(u.bytes[3]);
+  fragment_d(Int<4>{}) = cutlass::float_e4m3_t::bitcast(u.bytes[4]);
+  fragment_d(Int<5>{}) = cutlass::float_e4m3_t::bitcast(u.bytes[5]);
+  fragment_d(Int<6>{}) = cutlass::float_e4m3_t::bitcast(u.bytes[6]);
+  fragment_d(Int<7>{}) = cutlass::float_e4m3_t::bitcast(u.bytes[7]);
+  fragment_d(Int<8>{}) = cutlass::float_e4m3_t::bitcast(u.bytes[8]);
+  fragment_d(Int<9>{}) = cutlass::float_e4m3_t::bitcast(u.bytes[9]);  
+  fragment_d(Int<10>{}) = cutlass::float_e4m3_t::bitcast(u.bytes[10]);
+  fragment_d(Int<11>{}) = cutlass::float_e4m3_t::bitcast(u.bytes[11]);
+  fragment_d(Int<12>{}) = cutlass::float_e4m3_t::bitcast(u.bytes[12]);
+  fragment_d(Int<13>{}) = cutlass::float_e4m3_t::bitcast(u.bytes[13]);
+  fragment_d(Int<14>{}) = cutlass::float_e4m3_t::bitcast(u.bytes[14]);
+  fragment_d(Int<15>{}) = cutlass::float_e4m3_t::bitcast(u.bytes[15]);
   return fp8_sf_val;
 }
 
@@ -137,7 +156,7 @@ __inline__ __device__ void mxfp8_group_quant_tile(
 
   using Tiler_MN = typename TiledCopyG2R::Tiler_MN;
   auto tiler_mn = Tiler_MN{};
-  static_assert(size<0>(tiler_mn) == 8 && size<1>(tiler_mn) == 128);
+  static_assert(size<0>(tiler_mn) == 16 && size<1>(tiler_mn) == 128);
 
   auto tiled_tensor_s = tiled_divide(tensor_s, tiler_mn);
   auto tiled_tensor_p = tiled_divide(tensor_p, tiler_mn);
@@ -151,7 +170,7 @@ __inline__ __device__ void mxfp8_group_quant_tile(
 
   using SF_Tiler_MN = typename TiledCopyR2S::Tiler_MN;
   auto sf_tiler_mn = SF_Tiler_MN{};
-  static_assert(size<0>(sf_tiler_mn) == 8 && size<1>(sf_tiler_mn) == 4);
+  static_assert(size<0>(sf_tiler_mn) == 16 && size<1>(sf_tiler_mn) == 4);
 
   auto tiled_tensor_sf = tiled_divide(tensor_sf, sf_tiler_mn);
   auto tiled_tensor_shared_sf = tiled_divide(tensor_shared_sf, sf_tiler_mn);
@@ -159,7 +178,7 @@ __inline__ __device__ void mxfp8_group_quant_tile(
   auto squeeze_tiled_tensor_shared_sf = take<0, 2>(tiled_tensor_shared_sf);
 
   constexpr int tile_loop_count = size<1>(tiled_tensor_s);
-  constexpr int rows_in_tile = 8;
+  constexpr int rows_in_tile = 16;
   // We don't need to clear shared memory
   // clear(squeeze_tiled_tensor_shared_sf);
 #pragma unroll
@@ -186,7 +205,7 @@ __inline__ __device__ void mxfp8_group_quant_tile(
     auto output_fragment = make_fragment_like(thr_tile_r2g_d);
 
     // Register to Shared copy
-    auto thr_copy_r2s = tiled_copy_r2s.get_thread_slice(threadIdx.x / 4);
+    auto thr_copy_r2s = tiled_copy_r2s.get_thread_slice(threadIdx.x / 2);
     auto thr_tile_r2s_shared_sf = thr_copy_r2s.partition_D(current_copy_tile_shared_sf);
     auto shared_sf_fragment = make_fragment_like(thr_tile_r2s_shared_sf);
 
@@ -203,7 +222,7 @@ __inline__ __device__ void mxfp8_group_quant_tile(
     }
     __syncthreads();
   
-    if (threadIdx.x % 4 == 0) {
+    if (threadIdx.x % 2 == 0) {
       copy(tiled_copy_r2s, shared_sf_fragment, thr_tile_r2s_shared_sf);
     }
     __syncthreads();
@@ -338,15 +357,15 @@ void launch_es_sm100_mxfp8_blockscaled_grouped_quant(
 
   using CopyOpG2R = UniversalCopy<cutlass::AlignedArray<T_IN, size(val_layout)>>;
   using CopyAtomG2R = cute::Copy_Atom<CopyOpG2R, T_IN>;
-  auto tiled_copy_g2r = cute::make_tiled_copy(CopyAtomG2R{}, thr_layout, val_layout); // Tiler_MN: (8, 128)
+  auto tiled_copy_g2r = cute::make_tiled_copy(CopyAtomG2R{}, thr_layout, val_layout); // Tiler_MN: (16, 128)
 
   using CopyOpR2G = UniversalCopy<cutlass::AlignedArray<cutlass::float_e4m3_t, size(val_layout)>>;
   using CopyAtomR2G = cute::Copy_Atom<CopyOpR2G, cutlass::float_e4m3_t>;
-  auto tiled_copy_r2g = cute::make_tiled_copy(CopyAtomR2G{}, thr_layout, val_layout); // Tiler_MN: (8, 128)
+  auto tiled_copy_r2g = cute::make_tiled_copy(CopyAtomR2G{}, thr_layout, val_layout); // Tiler_MN: (16, 128)
 
   using CopyOpR2S = UniversalCopy<cutlass::AlignedArray<uint8_t, size(r2s_val_layout)>>;
   using CopyAtomR2S = cute::Copy_Atom<CopyOpR2S, uint8_t>;
-  auto tiled_copy_r2s = cute::make_tiled_copy(CopyAtomR2S{}, r2s_thr_layout, r2s_val_layout); // Tiler_MN: (8, 4)
+  auto tiled_copy_r2s = cute::make_tiled_copy(CopyAtomR2S{}, r2s_thr_layout, r2s_val_layout); // Tiler_MN: (16, 4)
 
   int max_active_blocks_per_sm = -1;
   AT_CUDA_CHECK(cudaOccupancyMaxActiveBlocksPerMultiprocessor(&max_active_blocks_per_sm,
