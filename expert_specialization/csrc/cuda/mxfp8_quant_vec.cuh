@@ -181,7 +181,7 @@ __inline__ __device__ void mxfp8_group_quant_tile(
   constexpr int rows_in_tile = 16;
   // We don't need to clear shared memory
   // clear(squeeze_tiled_tensor_shared_sf);
-#pragma unroll
+#pragma unroll 4
   for (int t = 0; t < tile_loop_count; t++) {
     if (t * rows_in_tile >= m) {
       break;
