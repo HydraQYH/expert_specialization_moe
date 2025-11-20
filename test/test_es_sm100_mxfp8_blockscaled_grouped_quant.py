@@ -4,6 +4,11 @@ import pytest
 import torch
 from expert_specialization.ops import es_sm100_mxfp8_blockscaled_grouped_quant, es_sm100_mxfp8_blockscaled_grouped_mm
 
+random.seed(42)
+torch.manual_seed(42)
+torch.cuda.manual_seed(42)
+torch.cuda.manual_seed_all(42)
+
 def align(val: int, alignment: int = 128) -> int:
   return int((val + alignment - 1) // alignment * alignment)
 
@@ -47,8 +52,8 @@ def test_es_sm100_mxfp8_blockscaled_grouped_quant(num_experts, out_dtype):
     problem_sizes.append([m_g, n_g, k_g])
     aux_problem_sizes.append([n_g, m_g, k_g])
 
-    a = torch.randn((m_g, k_g), device=device, dtype=out_dtype)  # (M, K):(K, 1)
-    b = torch.randn((n_g, k_g), device=device, dtype=out_dtype)  # (N, K):(K, 1)
+    a = torch.normal(0.0, std=1.0, size=(m_g, k_g), device=device, dtype=out_dtype)  # (M, K):(K, 1)
+    b = torch.normal(0.0, std=1.0, size=(n_g, k_g), device=device, dtype=out_dtype)  # (N, K):(K, 1)
     
     a_list.append(a)
     b_list.append(b)
@@ -65,7 +70,7 @@ def test_es_sm100_mxfp8_blockscaled_grouped_quant(num_experts, out_dtype):
   _b_blockscale_offsets = torch.tensor(b_blockscale_offsets).to(device=device, dtype=torch.int32)
 
   a_quant = torch.zeros_like(a, device=device)
-  a_scale_factor = torch.zeros((expert_offset, k_g // 32), dtype=torch.uint8, device=device)
+  a_scale_factor = torch.zeros((a_blockscale_offset, k_g // 32), dtype=torch.uint8, device=device)
 
   b_quant = torch.zeros_like(b, device=device)
   b_scale_factor = torch.zeros((num_experts, n_g, k_g // 32), dtype=torch.uint8, device=device)
