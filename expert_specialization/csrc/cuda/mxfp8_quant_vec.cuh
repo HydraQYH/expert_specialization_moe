@@ -267,8 +267,8 @@ __global__ void mxfp8_group_quant(
   for (int g = 0; g < groups; g++) {
     int m = problem_sizes[g * 3 + 0];
     int k = problem_sizes[g * 3 + 2];
-    int expert_offset = expert_offsets[g];
-    int blockscale_offset = blockscale_offsets[g];
+    int64_t expert_offset = static_cast<int64_t>(expert_offsets[g]);
+    int64_t blockscale_offset = static_cast<int64_t>(blockscale_offsets[g]);
 
     auto input_tensor = make_tensor(
       make_gmem_ptr(input + expert_offset * k),
