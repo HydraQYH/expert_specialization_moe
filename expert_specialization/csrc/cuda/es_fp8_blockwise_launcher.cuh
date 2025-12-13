@@ -169,6 +169,8 @@ void es_sm90_fp8_blockwise_scaled_group_mm_distpatch_out_dtype(
     const torch::Tensor& mm_problem_sizes,
     const torch::Tensor& hm_problem_sizes,
     const torch::Tensor& workspace,
+    const torch::Tensor& backup_workspace_0,
+    const torch::Tensor& backup_workspace_1,
     bool is_h20_device,
     cudaStream_t stream,
     cudaStream_t backup_stream_0,
@@ -203,7 +205,7 @@ void es_sm90_fp8_blockwise_scaled_group_mm_distpatch_out_dtype(
         lm_problem_sizes,
         workspace,
         stream,
-        44);
+        88);
   } else {
     launch_sm90_fp8_blockwise_scaled_group_mm<LowMGemmH20Traits>(
         out_ptrs,
@@ -235,9 +237,9 @@ void es_sm90_fp8_blockwise_scaled_group_mm_distpatch_out_dtype(
         layout_sfb,
         layout_sfa,
         mm_problem_sizes,
-        workspace,
+        backup_workspace_0,
         backup_stream_0,
-        44);
+        88);
   } else {
     launch_sm90_fp8_blockwise_scaled_group_mm<MiddleMGemmH20Traits>(
         out_ptrs,
@@ -269,9 +271,9 @@ void es_sm90_fp8_blockwise_scaled_group_mm_distpatch_out_dtype(
         layout_sfa,
         layout_sfb,
         hm_problem_sizes,
-        workspace,
+        backup_workspace_1,
         backup_stream_1,
-        44);
+        88);
   } else {
     launch_sm90_fp8_blockwise_scaled_group_mm<HighMGemmH20Traits>(
         out_ptrs,

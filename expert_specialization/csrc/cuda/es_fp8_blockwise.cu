@@ -71,6 +71,9 @@ void es_fp8_blockwise_scaled_grouped_mm(
   torch::Tensor mm_problem_sizes = torch::empty({num_experts, 3}, options_int32);
   torch::Tensor hm_problem_sizes = torch::empty({num_experts, 3}, options_int32);
 
+  torch::Tensor backup_workspace_0 = torch::empty_like(workspace);
+  torch::Tensor backup_workspace_1 = torch::empty_like(workspace);
+
   const std::string H20_device_type_str("NVIDIA H20");
   bool is_h20_device = std::string(at::cuda::getCurrentDeviceProperties()->name) == H20_device_type_str;
 
@@ -149,6 +152,8 @@ void es_fp8_blockwise_scaled_grouped_mm(
         mm_problem_sizes,
         hm_problem_sizes,
         workspace,
+        backup_workspace_0,
+        backup_workspace_1,
         is_h20_device,
         stream.stream(),
         backup_stream_0.stream(),
@@ -169,6 +174,8 @@ void es_fp8_blockwise_scaled_grouped_mm(
         mm_problem_sizes,
         hm_problem_sizes,
         workspace,
+        backup_workspace_0,
+        backup_workspace_1,
         is_h20_device,
         stream.stream(),
         backup_stream_0.stream(),
