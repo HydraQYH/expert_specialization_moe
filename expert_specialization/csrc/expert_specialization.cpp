@@ -31,7 +31,8 @@ void es_fp8_blockwise_scaled_grouped_mm(
     const torch::Tensor& stride_b,
     const torch::Tensor& stride_d,
     const torch::Tensor& problem_sizes,
-    const torch::Tensor& expert_offsets);
+    const torch::Tensor& expert_offsets,
+    const torch::Tensor& workspace);
 
 void es_sm100_mxfp8_blockscaled_grouped_mm(
     const torch::Tensor& a,
@@ -41,8 +42,7 @@ void es_sm100_mxfp8_blockscaled_grouped_mm(
     torch::Tensor& d,
     const torch::Tensor& problem_sizes,
     const torch::Tensor& expert_offsets,
-    const torch::Tensor& blockscale_offsets
-);
+    const torch::Tensor& blockscale_offsets);
 
 void es_sm100_mxfp8_blockscaled_grouped_quant(
     const torch::Tensor& input,
@@ -54,9 +54,16 @@ void es_sm100_mxfp8_blockscaled_grouped_quant(
 
 // Defines the operators
 TORCH_LIBRARY(expert_specialization, m) {
-  m.def("es_fp8_blockwise_scaled_grouped_mm(Tensor output, Tensor a, Tensor b, Tensor scales_a, Tensor scales_b, Tensor stride_a, Tensor stride_b, Tensor stride_d, Tensor problem_sizes, Tensor expert_offsets) -> ()");
-  m.def("es_sm100_mxfp8_blockscaled_grouped_mm(Tensor a, Tensor b, Tensor sfa, Tensor sfb, Tensor d, Tensor problem_sizes, Tensor expert_offsets, Tensor blockscale_offsets) -> ()");
-  m.def("es_sm100_mxfp8_blockscaled_grouped_quant(Tensor input, Tensor problem_sizes, Tensor expert_offsets, Tensor blockscale_offsets, Tensor quant_output, Tensor scale_factor) -> () ");
+  m.def(
+      "es_fp8_blockwise_scaled_grouped_mm(Tensor output, Tensor a, Tensor b, Tensor scales_a, Tensor scales_b, Tensor "
+      "stride_a, Tensor stride_b, Tensor stride_d, Tensor problem_sizes, Tensor expert_offsets, Tensor workspace) -> "
+      "()");
+  m.def(
+      "es_sm100_mxfp8_blockscaled_grouped_mm(Tensor a, Tensor b, Tensor sfa, Tensor sfb, Tensor d, Tensor "
+      "problem_sizes, Tensor expert_offsets, Tensor blockscale_offsets) -> ()");
+  m.def(
+      "es_sm100_mxfp8_blockscaled_grouped_quant(Tensor input, Tensor problem_sizes, Tensor expert_offsets, Tensor "
+      "blockscale_offsets, Tensor quant_output, Tensor scale_factor) -> () ");
 }
 
 TORCH_LIBRARY_IMPL(expert_specialization, CUDA, m) {
