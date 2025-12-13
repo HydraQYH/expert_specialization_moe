@@ -1,3 +1,4 @@
+#include <ATen/cuda/CUDAEvent.h>
 #include <torch/all.h>
 
 #include <tuple>
