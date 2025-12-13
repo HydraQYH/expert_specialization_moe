@@ -46,19 +46,18 @@ def create_unbalanced_expert_token_distribution(max_num_experts):
         if ratio <= 0.7:
             return random.randint(1, 32)
         elif ratio > 0.7 and ratio <= 0.85:
-            return random.randint(32, 64)
+            return random.randint(33, 64)
         elif ratio > 0.85 and ratio <= 0.95:
-            return random.randint(64, 128)
+            return random.randint(65, 128)
         elif ratio > 0.95:
-            return random.randint(128, 1024)
+            return random.randint(129, 1024)
         else:
             return 128
     group_ms = [convert_to_tokens(ratio) for ratio in ratios]
     return group_ms
 
-group_ms = create_unbalanced_expert_token_distribution(8192)
-# group_ms = [128 for _ in range(8192)]
-# group_ms = [128 if i % 2 == 0 else 64 for i in range(8192)]
+# group_ms = create_unbalanced_expert_token_distribution(8192)
+group_ms = [random.randint(1, 128) for _ in range(8192)]
 
 def bench_es(
     n: int,
