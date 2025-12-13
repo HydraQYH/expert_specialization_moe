@@ -119,6 +119,7 @@ def bench_es(
         b_scale_stack[g] = b_scales_tensors[g].t()
     b_scale_stack = b_scale_stack.transpose(1, 2)
 
+    workspace = torch.empty((1024 * 1024 * 1024), device=device, dtype=torch.uint8)
     c_out = torch.empty((expert_offsets[-1], n_g), device=device, dtype=out_dtype)
     a_strides = torch.full(
         (num_groups,), a_stack.stride(0), device=device, dtype=torch.int64
@@ -138,7 +139,8 @@ def bench_es(
             a_strides,
             d_strides,
             problem_sizes,
-            expert_offsets[:-1]
+            expert_offsets[:-1],
+            workspace
         )
     run_cutlass()
     # warmup
@@ -309,18 +311,22 @@ def main():
     parser.add_argument("--num-warmup", type=int, default=3)
     parser.add_argument("--num-run", type=int, default=20)
     shape_args = [
-        # Prefill, DeepSeek-R1, gateup, chunk_size = 4096, TP = 8
+        # DeepSeek-R1, gateup, TP = 8
         ShapeArg(n=512, k=7168, num_groups=256),
-        # Prefill, DeepSeek-R1, down, chunk_size = 4096, TP = 8
+        # DeepSeek-R1, down, TP = 8
         ShapeArg(n=7168, k=256, num_groups=256),
-        # Prefill, Qwen3-235B-A22B-FP8, gateup, TP = 4
+        # DeepSeek-R1, gateup, TP = 4
+        ShapeArg(n=1024, k=7168, num_groups=256),
+        # DeepSeek-R1, down, TP = 4
+        ShapeArg(n=7168, k=512, num_groups=256),
+        # Qwen3-235B-A22B-FP8, gateup, TP = 4
         ShapeArg(n=768, k=4096, num_groups=128),
-        # Prefill, Qwen3-235B-A22B-FP8, down, TP = 4
+        # Qwen3-235B-A22B-FP8, down, TP = 4
         ShapeArg(n=4096, k=384, num_groups=128),
-        # Decode, DeepSeek-R1, gateup, bs = 128, EP = 8
-        ShapeArg(n=4096, k=7168, num_groups=32),
-        # Decode, DeepSeek-R1, gateup, bs = 256, EP = 16
-        ShapeArg(n=4096, k=7168, num_groups=16),
+        # Qwen3-235B-A22B-FP8, gateup, TP = 2
+        ShapeArg(n=1536, k=4096, num_groups=128),
+        # Qwen3-235B-A22B-FP8, down, TP = 2
+        ShapeArg(n=4096, k=768, num_groups=128),
     ]
     args = parser.parse_args()
     benchmark_one_shape(shape_args, args.num_warmup, args.num_run)

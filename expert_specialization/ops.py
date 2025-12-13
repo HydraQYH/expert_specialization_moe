@@ -1,7 +1,5 @@
-import numpy as np
 import torch
 
-__all__ = ["es_fp8_blockwise_scaled_grouped_mm"]
 
 def es_fp8_blockwise_scaled_grouped_mm(
     output,
@@ -13,7 +11,8 @@ def es_fp8_blockwise_scaled_grouped_mm(
     stride_b,
     stride_d,
     problem_sizes,
-    expert_offsets
+    expert_offsets,
+    workspace,
 ):
     torch.ops.expert_specialization.es_fp8_blockwise_scaled_grouped_mm.default(
         output,
@@ -25,31 +24,27 @@ def es_fp8_blockwise_scaled_grouped_mm(
         stride_b,
         stride_d,
         problem_sizes,
-        expert_offsets
+        expert_offsets,
+        workspace,
     )
 
+
 def es_sm100_mxfp8_blockscaled_grouped_mm(
-    output,
-    a,
-    b,
-    sfa,
-    sfb,
-    problem_sizes,
-    expert_offsets,
-    blockscale_offsets
+    output, a, b, sfa, sfb, problem_sizes, expert_offsets, blockscale_offsets
 ):
     torch.ops.expert_specialization.es_sm100_mxfp8_blockscaled_grouped_mm.default(
         a, b, sfa, sfb, output, problem_sizes, expert_offsets, blockscale_offsets
     )
 
+
 def es_sm100_mxfp8_blockscaled_grouped_quant(
-    input,
-    problem_sizes,
-    expert_offsets,
-    blockscale_offsets,
-    quant_output,
-    scale_factor
+    input, problem_sizes, expert_offsets, blockscale_offsets, quant_output, scale_factor
 ):
     torch.ops.expert_specialization.es_sm100_mxfp8_blockscaled_grouped_quant.default(
-        input, problem_sizes, expert_offsets, blockscale_offsets, quant_output, scale_factor
+        input,
+        problem_sizes,
+        expert_offsets,
+        blockscale_offsets,
+        quant_output,
+        scale_factor,
     )
