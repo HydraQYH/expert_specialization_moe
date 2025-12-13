@@ -72,8 +72,13 @@ void es_fp8_blockwise_scaled_grouped_mm(
 
   const std::string H20_device_type_str("NVIDIA H20");
   bool is_h20_device = std::string(at::cuda::getCurrentDeviceProperties()->name) == H20_device_type_str;
-  at::cuda::CUDAGuard device_guard{(char)a.get_device()};
-  cudaStream_t stream = at::cuda::getCurrentCUDAStream(a.get_device());
+
+  auto stream = at::cuda::getCurrentCUDAStream();
+  auto backup_stream_0 = at::cuda::getStreamFromPool();
+  auto backup_stream_1 = at::cuda::getStreamFromPool();
+  at::cuda::CUDAEvent start_event;
+  at::cuda::CUDAEvent end_event_0;
+  at::cuda::CUDAEvent end_event_1;
 
   if (output.dtype() == torch::kBFloat16) {
     expert_specialization::es_sm90_fp8_blockwise_scaled_group_mm_pre_compute<cutlass::bfloat16_t>(
@@ -95,7 +100,7 @@ void es_fp8_blockwise_scaled_grouped_mm(
         problem_sizes,
         expert_offsets,
         is_h20_device,
-        stream);
+        stream.stream());
   } else if (output.dtype() == torch::kFloat16) {
     expert_specialization::es_sm90_fp8_blockwise_scaled_group_mm_pre_compute<cutlass::half_t>(
         out_ptrs,
@@ -116,9 +121,15 @@ void es_fp8_blockwise_scaled_grouped_mm(
         problem_sizes,
         expert_offsets,
         is_h20_device,
-        stream);
+        stream.stream());
   } else {
     TORCH_CHECK(false, "Invalid output type (must be float16 or bfloat16)");
+  }
+
+  if (!is_h20_device) {
+    start_event.recordOnce(stream);
+    start_event.block(backup_stream_0);
+    start_event.block(backup_stream_1);
   }
 
   if (output.dtype() == torch::kBFloat16) {
@@ -138,7 +149,9 @@ void es_fp8_blockwise_scaled_grouped_mm(
         hm_problem_sizes,
         workspace,
         is_h20_device,
-        stream);
+        stream.stream(),
+        backup_stream_0.stream(),
+        backup_stream_1.stream());
   } else if (output.dtype() == torch::kFloat16) {
     expert_specialization::es_sm90_fp8_blockwise_scaled_group_mm_distpatch_out_dtype<cutlass::half_t>(
         out_ptrs,
@@ -156,9 +169,18 @@ void es_fp8_blockwise_scaled_grouped_mm(
         hm_problem_sizes,
         workspace,
         is_h20_device,
-        stream);
+        stream.stream(),
+        backup_stream_0.stream(),
+        backup_stream_1.stream());
   } else {
     TORCH_CHECK(false, "Invalid output type (must be float16 or bfloat16)");
+  }
+
+  if (!is_h20_device) {
+    end_event_0.recordOnce(backup_stream_0);
+    end_event_1.recordOnce(backup_stream_1);
+    end_event_0.block(stream);
+    end_event_1.block(stream);
   }
 #else
   TORCH_CHECK_NOT_IMPLEMENTED(
