@@ -1,17 +1,15 @@
 #pragma once
 #include <cuda.h>
 
-#include <iostream>
-
-#include "cutlass/util/packed_stride.hpp"
 #include "cute/tensor.hpp"
+#include "cutlass/util/packed_stride.hpp"
 #include "es_sm100_mxfp8_blockscaled_traits.cuh"
 
 namespace expert_specialization {
 
 using namespace cute;
 
-template<typename GemmTraits>
+template <typename GemmTraits>
 struct Sm100Mxfp8BlockScaledOffsetFunctor {
   using Gemm = typename GemmTraits::Gemm;
   using ElementA = typename Gemm::ElementA;
@@ -35,31 +33,30 @@ struct Sm100Mxfp8BlockScaledOffsetFunctor {
 
   Sm100Mxfp8BlockScaledOffsetFunctor() = default;
   Sm100Mxfp8BlockScaledOffsetFunctor(
-    int* _expert_offsets,
-    int* _blockscale_offsets,
-    ElementA* _a_base,
-    ElementB* _b_base,
-    ElementSF* _sfa_base,
-    ElementSF* _sfb_base,
-    ElementD* _d_base,
-    ElementA** _a_offsets,
-    ElementB** _b_offsets,
-    ElementSF** _sfa_offsets,
-    ElementSF** _sfb_offsets,
-    ElementD** _d_offsets)
-    : expert_offsets{_expert_offsets},
-      blockscale_offsets{_blockscale_offsets},
-      a_base(_a_base),
-      b_base(_b_base),
-      sfa_base(_sfa_base),
-      sfb_base(_sfb_base),
-      d_base(_d_base),
-      a_offsets(_a_offsets),
-      b_offsets(_b_offsets),
-      sfa_offsets(_sfa_offsets),
-      sfb_offsets(_sfb_offsets),
-      d_offsets(_d_offsets)
-    {}
+      int* _expert_offsets,
+      int* _blockscale_offsets,
+      ElementA* _a_base,
+      ElementB* _b_base,
+      ElementSF* _sfa_base,
+      ElementSF* _sfb_base,
+      ElementD* _d_base,
+      ElementA** _a_offsets,
+      ElementB** _b_offsets,
+      ElementSF** _sfa_offsets,
+      ElementSF** _sfb_offsets,
+      ElementD** _d_offsets)
+      : expert_offsets{_expert_offsets},
+        blockscale_offsets{_blockscale_offsets},
+        a_base(_a_base),
+        b_base(_b_base),
+        sfa_base(_sfa_base),
+        sfb_base(_sfb_base),
+        d_base(_d_base),
+        a_offsets(_a_offsets),
+        b_offsets(_b_offsets),
+        sfa_offsets(_sfa_offsets),
+        sfb_offsets(_sfb_offsets),
+        d_offsets(_d_offsets) {}
 
   void CUTE_DEVICE operator()(int64_t expert_id, int m, int n, int k) {
     int64_t expert_offset = static_cast<int64_t>(expert_offsets[expert_id]);
@@ -80,7 +77,7 @@ struct Sm100Mxfp8BlockScaledOffsetFunctor {
 
 template <typename GemmTraits>
 struct Sm100Mxfp8BlockScaledLayoutFunctor {
-  using Sm1xxBlkScaledConfig =  typename GemmTraits::Sm1xxBlkScaledConfig;
+  using Sm1xxBlkScaledConfig = typename GemmTraits::Sm1xxBlkScaledConfig;
   using LayoutSFA = typename GemmTraits::LayoutSFA;
   using LayoutSFB = typename GemmTraits::LayoutSFB;
   LayoutSFA* layout_sfa_base{nullptr};
@@ -121,15 +118,9 @@ struct Sm100Mxfp8BlockScaledStrideFunctor {
   }
 };
 
-template <
-    typename OffsetFunctor,
-    typename LayoutFunctor,
-    typename StrideFuncotr>
+template <typename OffsetFunctor, typename LayoutFunctor, typename StrideFunctor>
 __global__ void sm100Mxfp8BlockscaledGroupedGemmPreComputeKernel(
-    int* problem_sizes,
-    OffsetFunctor offset_functor,
-    LayoutFunctor layout_functor,
-    StrideFuncotr stride_functor) {
+    int* problem_sizes, OffsetFunctor offset_functor, LayoutFunctor layout_functor, StrideFunctor stride_functor) {
   int64_t expert_id = static_cast<int64_t>(threadIdx.x);
   int m = problem_sizes[expert_id * 3 + 0];
   int n = problem_sizes[expert_id * 3 + 1];
@@ -140,4 +131,4 @@ __global__ void sm100Mxfp8BlockscaledGroupedGemmPreComputeKernel(
   stride_functor(expert_id, m, n, k);
 }
 
-} // namespace expert_specialization
+}  // namespace expert_specialization

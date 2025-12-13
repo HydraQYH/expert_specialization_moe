@@ -8,9 +8,8 @@
 #include <string>
 
 #include "cute/tensor.hpp"
-
-#include "es_sm100_mxfp8_blockscaled_traits.cuh"
 #include "es_sm100_mxfp8_blockscaled_functor.cuh"
+#include "es_sm100_mxfp8_blockscaled_traits.cuh"
 
 namespace expert_specialization {
 
@@ -34,8 +33,7 @@ void es_sm100_mxfp8_blockscaled_group_mm_pre_compute(
     const torch::Tensor& problem_sizes,
     const torch::Tensor& expert_offsets,
     const torch::Tensor& blockscale_offsets,
-    cudaStream_t stream
-) {
+    cudaStream_t stream) {
   using OffsetFunctor = Sm100Mxfp8BlockScaledOffsetFunctor<GemmTraits>;
   using ElementA = typename OffsetFunctor::ElementA;
   using ElementB = typename OffsetFunctor::ElementB;
@@ -52,33 +50,29 @@ void es_sm100_mxfp8_blockscaled_group_mm_pre_compute(
   using StrideD = typename StrideFunctor::StrideD;
 
   int num_experts = (int)expert_offsets.size(0);
-  TORCH_CHECK(num_experts <= 1024, "Expert more than 1024");  // Max threads per block is 1024
+  TORCH_CHECK(num_experts <= 1024, "Number of experts cannot exceed 1024, the maximum number of threads per block.");
 
   OffsetFunctor offset_functor(
-    reinterpret_cast<int*>(expert_offsets.data_ptr()),
-    reinterpret_cast<int*>(blockscale_offsets.data_ptr()),
-    reinterpret_cast<ElementA*>(a.data_ptr()),
-    reinterpret_cast<ElementB*>(b.data_ptr()),
-    reinterpret_cast<ElementSF*>(sfa.data_ptr()),
-    reinterpret_cast<ElementSF*>(sfb.data_ptr()),
-    reinterpret_cast<ElementD*>(d.data_ptr()),
-    reinterpret_cast<ElementA**>(a_ptrs.data_ptr()),
-    reinterpret_cast<ElementB**>(b_ptrs.data_ptr()),
-    reinterpret_cast<ElementSF**>(sfa_ptrs.data_ptr()),
-    reinterpret_cast<ElementSF**>(sfb_ptrs.data_ptr()),
-    reinterpret_cast<ElementD**>(d_ptrs.data_ptr())
-  );
+      reinterpret_cast<int*>(expert_offsets.data_ptr()),
+      reinterpret_cast<int*>(blockscale_offsets.data_ptr()),
+      reinterpret_cast<ElementA*>(a.data_ptr()),
+      reinterpret_cast<ElementB*>(b.data_ptr()),
+      reinterpret_cast<ElementSF*>(sfa.data_ptr()),
+      reinterpret_cast<ElementSF*>(sfb.data_ptr()),
+      reinterpret_cast<ElementD*>(d.data_ptr()),
+      reinterpret_cast<ElementA**>(a_ptrs.data_ptr()),
+      reinterpret_cast<ElementB**>(b_ptrs.data_ptr()),
+      reinterpret_cast<ElementSF**>(sfa_ptrs.data_ptr()),
+      reinterpret_cast<ElementSF**>(sfb_ptrs.data_ptr()),
+      reinterpret_cast<ElementD**>(d_ptrs.data_ptr()));
   LayoutFunctor layout_functor(
-    reinterpret_cast<LayoutSFA*>(layout_sfa.data_ptr()),
-    reinterpret_cast<LayoutSFB*>(layout_sfb.data_ptr())
-  );
+      reinterpret_cast<LayoutSFA*>(layout_sfa.data_ptr()), reinterpret_cast<LayoutSFB*>(layout_sfb.data_ptr()));
   StrideFunctor stride_functor(
-    reinterpret_cast<StrideA*>(stride_a.data_ptr()),
-    reinterpret_cast<StrideB*>(stride_b.data_ptr()),
-    reinterpret_cast<StrideD*>(stride_d.data_ptr())
-  );
- sm100Mxfp8BlockscaledGroupedGemmPreComputeKernel<<<1, num_experts, 0, stream>>>(
-    static_cast<int*>(problem_sizes.data_ptr()), offset_functor, layout_functor, stride_functor);
+      reinterpret_cast<StrideA*>(stride_a.data_ptr()),
+      reinterpret_cast<StrideB*>(stride_b.data_ptr()),
+      reinterpret_cast<StrideD*>(stride_d.data_ptr()));
+  sm100Mxfp8BlockscaledGroupedGemmPreComputeKernel<<<1, num_experts, 0, stream>>>(
+      static_cast<int*>(problem_sizes.data_ptr()), offset_functor, layout_functor, stride_functor);
 }
 
 template <typename GemmTraits>
@@ -112,34 +106,30 @@ void es_sm100_mxfp8_blockscaled_group_mm(
   hw_info.sm_count = at::cuda::getCurrentDeviceProperties()->multiProcessorCount;
   hw_info.cluster_shape = GemmTraits::MMAConfig::preferred_cluster;
   hw_info.cluster_shape_fallback = GemmTraits::MMAConfig::fallback_cluster;
-  
+
   int num_experts = (int)problem_sizes.size(0);
 
-  UnderlyingProblemShape* underlying_problem_shape = \
-    reinterpret_cast<UnderlyingProblemShape*>(problem_sizes.data_ptr());
+  UnderlyingProblemShape* underlying_problem_shape =
+      reinterpret_cast<UnderlyingProblemShape*>(problem_sizes.data_ptr());
 
   typename Gemm::Arguments arguments = {
-    cutlass::gemm::GemmUniversalMode::kGrouped,
-    {num_experts, underlying_problem_shape, nullptr},
-    {
-      reinterpret_cast<const ElementA**>(a_ptrs.data_ptr()),
-      reinterpret_cast<StrideA*>(stride_a.data_ptr()),
-      reinterpret_cast<const ElementB**>(b_ptrs.data_ptr()),
-      reinterpret_cast<StrideB*>(stride_b.data_ptr()),
-      reinterpret_cast<const ElementSF**>(sfa_ptrs.data_ptr()),
-      reinterpret_cast<LayoutSFA*>(layout_sfa.data_ptr()),
-      reinterpret_cast<const ElementSF**>(sfb_ptrs.data_ptr()),
-      reinterpret_cast<LayoutSFB*>(layout_sfb.data_ptr())
-    },
-    {
-      {},
-      nullptr,
-      nullptr,
-      reinterpret_cast<ElementD**>(d_ptrs.data_ptr()),
-      reinterpret_cast<StrideD*>(stride_d.data_ptr())
-    },
-    hw_info,
-    {}  // Scheduler
+      cutlass::gemm::GemmUniversalMode::kGrouped,
+      {num_experts, underlying_problem_shape, nullptr},
+      {reinterpret_cast<const ElementA**>(a_ptrs.data_ptr()),
+       reinterpret_cast<StrideA*>(stride_a.data_ptr()),
+       reinterpret_cast<const ElementB**>(b_ptrs.data_ptr()),
+       reinterpret_cast<StrideB*>(stride_b.data_ptr()),
+       reinterpret_cast<const ElementSF**>(sfa_ptrs.data_ptr()),
+       reinterpret_cast<LayoutSFA*>(layout_sfa.data_ptr()),
+       reinterpret_cast<const ElementSF**>(sfb_ptrs.data_ptr()),
+       reinterpret_cast<LayoutSFB*>(layout_sfb.data_ptr())},
+      {{},
+       nullptr,
+       nullptr,
+       reinterpret_cast<ElementD**>(d_ptrs.data_ptr()),
+       reinterpret_cast<StrideD*>(stride_d.data_ptr())},
+      hw_info,
+      {}  // Scheduler
   };
 
   Gemm gemm;
@@ -159,7 +149,7 @@ void es_sm100_mxfp8_blockscaled_group_mm(
 }
 
 template <typename OutType>
-void es_sm100_mxfp8_blockscaled_group_mm_distpatch_out_dtype(
+void es_sm100_mxfp8_blockscaled_group_mm_dispatch_out_dtype(
     const torch::Tensor& a,
     const torch::Tensor& b,
     const torch::Tensor& sfa,
@@ -168,8 +158,7 @@ void es_sm100_mxfp8_blockscaled_group_mm_distpatch_out_dtype(
     const torch::Tensor& problem_sizes,
     const torch::Tensor& expert_offsets,
     const torch::Tensor& blockscale_offsets,
-    cudaStream_t stream
-) {
+    cudaStream_t stream) {
   int num_experts = (int)problem_sizes.size(0);
   torch::TensorOptions options_int64 = torch::TensorOptions().dtype(torch::kInt64).device(a.device());
   torch::TensorOptions options_int32 = torch::TensorOptions().dtype(torch::kInt32).device(a.device());
@@ -188,12 +177,38 @@ void es_sm100_mxfp8_blockscaled_group_mm_distpatch_out_dtype(
 
   using GemmTraits = ExpertSpecializationSm100MXFP8BlockscaledGroupedGemmTraits<MMA1SMConfig, OutType>;
   es_sm100_mxfp8_blockscaled_group_mm_pre_compute<GemmTraits>(
-    a_ptrs, b_ptrs, sfa_ptrs, sfb_ptrs, d_ptrs, stride_a, stride_b, stride_d, layout_sfa, layout_sfb,
-    a, b, sfa, sfb, d, problem_sizes, expert_offsets, blockscale_offsets, stream
-  );
+      a_ptrs,
+      b_ptrs,
+      sfa_ptrs,
+      sfb_ptrs,
+      d_ptrs,
+      stride_a,
+      stride_b,
+      stride_d,
+      layout_sfa,
+      layout_sfb,
+      a,
+      b,
+      sfa,
+      sfb,
+      d,
+      problem_sizes,
+      expert_offsets,
+      blockscale_offsets,
+      stream);
   es_sm100_mxfp8_blockscaled_group_mm<GemmTraits>(
-    a_ptrs, b_ptrs, sfa_ptrs, sfb_ptrs, d_ptrs, stride_a, stride_b, stride_d, layout_sfa, layout_sfb, problem_sizes, stream
-  );
+      a_ptrs,
+      b_ptrs,
+      sfa_ptrs,
+      sfb_ptrs,
+      d_ptrs,
+      stride_a,
+      stride_b,
+      stride_d,
+      layout_sfa,
+      layout_sfb,
+      problem_sizes,
+      stream);
 }
 
-} // namespace expert_specialization
+}  // namespace expert_specialization
