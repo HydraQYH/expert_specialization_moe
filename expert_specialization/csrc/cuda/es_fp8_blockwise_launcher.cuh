@@ -239,7 +239,7 @@ void es_sm90_fp8_blockwise_scaled_group_mm_distpatch_out_dtype(
         lm_problem_sizes,
         backup_workspace_1,
         backup_stream_1,
-        88);
+        132);
   } else {
     launch_sm90_fp8_blockwise_scaled_group_mm<LowMGemmH20Traits>(
         out_ptrs,
@@ -273,7 +273,7 @@ void es_sm90_fp8_blockwise_scaled_group_mm_distpatch_out_dtype(
         mm_problem_sizes,
         backup_workspace_0,
         backup_stream_0,
-        44);
+        132);
   } else {
     launch_sm90_fp8_blockwise_scaled_group_mm<MiddleMGemmH20Traits>(
         out_ptrs,
