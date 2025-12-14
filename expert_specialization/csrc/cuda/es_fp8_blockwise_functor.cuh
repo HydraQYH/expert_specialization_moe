@@ -147,16 +147,9 @@ struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigLowMHx00> {
   Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor(int* _problem_sizes) : problem_sizes(_problem_sizes) {}
 
   void CUTE_DEVICE operator()(int64_t expert_id, int m, int n, int k) {
-    if (m <= 32) {
-      // Swap A/B
-      problem_sizes[expert_id * 3 + 0] = n;
-      problem_sizes[expert_id * 3 + 1] = m;
-      problem_sizes[expert_id * 3 + 2] = k;
-    } else {
-      problem_sizes[expert_id * 3 + 0] = 0;
-      problem_sizes[expert_id * 3 + 1] = 0;
-      problem_sizes[expert_id * 3 + 2] = 0;
-    }
+    problem_sizes[expert_id * 3 + 0] = 0;
+    problem_sizes[expert_id * 3 + 1] = 0;
+    problem_sizes[expert_id * 3 + 2] = 0;
   }
 };
 
@@ -188,9 +181,9 @@ struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigMiddleMHx00> {
   Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor(int* _problem_sizes) : problem_sizes(_problem_sizes) {}
 
   void CUTE_DEVICE operator()(int64_t expert_id, int m, int n, int k) {
-    if (m > 32 && m <= 64) {
-      problem_sizes[expert_id * 3 + 0] = n;
-      problem_sizes[expert_id * 3 + 1] = m;
+    if (m <= 64) {
+      problem_sizes[expert_id * 3 + 0] = m;
+      problem_sizes[expert_id * 3 + 1] = n;
       problem_sizes[expert_id * 3 + 2] = k;
     } else {
       problem_sizes[expert_id * 3 + 0] = 0;
