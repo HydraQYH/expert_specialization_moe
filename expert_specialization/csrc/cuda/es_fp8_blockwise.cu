@@ -82,7 +82,7 @@ void es_fp8_blockwise_scaled_grouped_mm(
   auto backup_stream_1 = at::cuda::getStreamFromPool();
   at::cuda::CUDAEvent start_event;
   at::cuda::CUDAEvent end_event_0;
-  at::cuda::CUDAEvent end_event_1;
+  // at::cuda::CUDAEvent end_event_1;
 
   if (output.dtype() == torch::kBFloat16) {
     expert_specialization::es_sm90_fp8_blockwise_scaled_group_mm_pre_compute<cutlass::bfloat16_t>(
@@ -133,7 +133,7 @@ void es_fp8_blockwise_scaled_grouped_mm(
   if (!is_h20_device) {
     start_event.recordOnce(stream);
     start_event.block(backup_stream_0);
-    start_event.block(backup_stream_1);
+    // start_event.block(backup_stream_1);
   }
 
   if (output.dtype() == torch::kBFloat16) {
