@@ -191,6 +191,40 @@ void es_sm90_fp8_blockwise_scaled_group_mm_distpatch_out_dtype(
       ExpertSpecializationSm90FP8BlockwiseGroupedGemmTraits<OutType, cutlass::layout::RowMajor, PerfConfigHighMHx00>;
 
   if (!is_h20_device) {
+    launch_sm90_fp8_blockwise_scaled_group_mm<HighMGemmHx00Traits>(
+        out_ptrs,
+        a_ptrs,
+        b_ptrs,
+        a_scales_ptrs,
+        b_scales_ptrs,
+        stride_a,
+        stride_b,
+        stride_d,
+        layout_sfa,
+        layout_sfb,
+        hm_problem_sizes,
+        workspace,
+        stream,
+        132);
+  } else {
+    launch_sm90_fp8_blockwise_scaled_group_mm<HighMGemmH20Traits>(
+        out_ptrs,
+        a_ptrs,
+        b_ptrs,
+        a_scales_ptrs,
+        b_scales_ptrs,
+        stride_a,
+        stride_b,
+        stride_d,
+        layout_sfa,
+        layout_sfb,
+        hm_problem_sizes,
+        workspace,
+        stream,
+        78);
+  }
+
+  if (!is_h20_device) {
     launch_sm90_fp8_blockwise_scaled_group_mm<LowMGemmHx00Traits>(
         out_ptrs,
         b_ptrs,
@@ -203,9 +237,9 @@ void es_sm90_fp8_blockwise_scaled_group_mm_distpatch_out_dtype(
         layout_sfb,
         layout_sfa,
         lm_problem_sizes,
-        workspace,
-        stream,
-        132);
+        backup_workspace_1,
+        backup_stream_1,
+        88);
   } else {
     launch_sm90_fp8_blockwise_scaled_group_mm<LowMGemmH20Traits>(
         out_ptrs,
@@ -239,7 +273,7 @@ void es_sm90_fp8_blockwise_scaled_group_mm_distpatch_out_dtype(
         mm_problem_sizes,
         backup_workspace_0,
         backup_stream_0,
-        132);
+        44);
   } else {
     launch_sm90_fp8_blockwise_scaled_group_mm<MiddleMGemmH20Traits>(
         out_ptrs,
@@ -253,40 +287,6 @@ void es_sm90_fp8_blockwise_scaled_group_mm_distpatch_out_dtype(
         layout_sfa,
         layout_sfb,
         mm_problem_sizes,
-        workspace,
-        stream,
-        78);
-  }
-
-  if (!is_h20_device) {
-    launch_sm90_fp8_blockwise_scaled_group_mm<HighMGemmHx00Traits>(
-        out_ptrs,
-        a_ptrs,
-        b_ptrs,
-        a_scales_ptrs,
-        b_scales_ptrs,
-        stride_a,
-        stride_b,
-        stride_d,
-        layout_sfa,
-        layout_sfb,
-        hm_problem_sizes,
-        backup_workspace_1,
-        backup_stream_1,
-        132);
-  } else {
-    launch_sm90_fp8_blockwise_scaled_group_mm<HighMGemmH20Traits>(
-        out_ptrs,
-        a_ptrs,
-        b_ptrs,
-        a_scales_ptrs,
-        b_scales_ptrs,
-        stride_a,
-        stride_b,
-        stride_d,
-        layout_sfa,
-        layout_sfb,
-        hm_problem_sizes,
         workspace,
         stream,
         78);
