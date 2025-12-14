@@ -65,6 +65,9 @@ def bench_es(
     num_groups: int,
     num_warmup: int,
     num_run: int,
+    enable_cuda_profiler_api: bool = False,
+    enable_pytorch_profiler: bool = False,
+    pytorch_profiler_output_path: str = None,
 ) -> Tuple[float, int]:
     device = "cuda"
     alignment = 128
@@ -158,6 +161,26 @@ def bench_es(
     torch.cuda.synchronize()
     avg = start_event.elapsed_time(end_event) / num_run * 1000  # us
 
+    if enable_cuda_profiler_api:
+        torch.cuda.cudart().cudaProfilerStart()
+        run_cutlass()
+        torch.cuda.cudart().cudaProfilerStop()
+
+    if enable_pytorch_profiler:
+        assert pytorch_profiler_output_path is not None
+        worker_name = f"es_group_{num_groups}_m_{sum(group_ms[0:num_groups])}_n_{n}_k_{k}"
+        with torch.profiler.profile(
+            activities=[
+                torch.profiler.ProfilerActivity.CPU,
+                torch.profiler.ProfilerActivity.CUDA,
+            ],
+            schedule=torch.profiler.schedule(wait=1, warmup=1, active=2, repeat=1, skip_first=1),
+            on_trace_ready=torch.profiler.tensorboard_trace_handler(pytorch_profiler_output_path, worker_name=worker_name)
+        ) as p:
+            for _ in range(5):
+                run_cutlass()
+                p.step()
+
     return avg, expert_offsets[-1]
 
 def bench_sgl(
@@ -166,6 +189,7 @@ def bench_sgl(
     num_groups: int,
     num_warmup: int,
     num_run: int,
+    enable_cuda_profiler_api: bool = False,
 ) -> Tuple[float, int]:
     device = "cuda"
     alignment = 128
@@ -270,6 +294,11 @@ def bench_sgl(
     end_event.synchronize()
     torch.cuda.synchronize()
     avg = start_event.elapsed_time(end_event) / num_run * 1000  # us
+
+    if enable_cuda_profiler_api:
+        torch.cuda.cudart().cudaProfilerStart()
+        run_cutlass()
+        torch.cuda.cudart().cudaProfilerStop()
 
     return avg, expert_offsets[-1]
 
