@@ -224,23 +224,7 @@ void es_sm90_fp8_blockwise_scaled_group_mm_distpatch_out_dtype(
         78);
   }
 
-  if (!is_h20_device) {
-    launch_sm90_fp8_blockwise_scaled_group_mm<LowMGemmHx00Traits>(
-        out_ptrs,
-        b_ptrs,
-        a_ptrs,
-        b_scales_ptrs,
-        a_scales_ptrs,
-        stride_b,
-        stride_a,
-        stride_d,
-        layout_sfb,
-        layout_sfa,
-        lm_problem_sizes,
-        backup_workspace_1,
-        backup_stream_1,
-        132);
-  } else {
+  if (is_h20_device) {
     launch_sm90_fp8_blockwise_scaled_group_mm<LowMGemmH20Traits>(
         out_ptrs,
         b_ptrs,
