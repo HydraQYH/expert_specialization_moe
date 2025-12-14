@@ -182,8 +182,8 @@ struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigMiddleMHx00> {
 
   void CUTE_DEVICE operator()(int64_t expert_id, int m, int n, int k) {
     if (m <= 64) {
-      problem_sizes[expert_id * 3 + 0] = m;
-      problem_sizes[expert_id * 3 + 1] = n;
+      problem_sizes[expert_id * 3 + 0] = n;
+      problem_sizes[expert_id * 3 + 1] = m;
       problem_sizes[expert_id * 3 + 2] = k;
     } else {
       problem_sizes[expert_id * 3 + 0] = 0;

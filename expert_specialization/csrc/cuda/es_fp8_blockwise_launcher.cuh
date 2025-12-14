@@ -183,7 +183,7 @@ void es_sm90_fp8_blockwise_scaled_group_mm_distpatch_out_dtype(
       ExpertSpecializationSm90FP8BlockwiseGroupedGemmTraits<OutType, cutlass::layout::RowMajor, PerfConfigMiddleMH20>;
   using MiddleMGemmHx00Traits = ExpertSpecializationSm90FP8BlockwiseGroupedGemmTraits<
       OutType,
-      cutlass::layout::RowMajor,
+      cutlass::layout::ColumnMajor,
       PerfConfigMiddleMHx00>;
   using HighMGemmH20Traits =
       ExpertSpecializationSm90FP8BlockwiseGroupedGemmTraits<OutType, cutlass::layout::RowMajor, PerfConfigHighMH20>;
