@@ -253,8 +253,8 @@ void es_sm90_fp8_blockwise_scaled_group_mm_distpatch_out_dtype(
         layout_sfb,
         layout_sfa,
         lm_problem_sizes,
-        workspace,
-        stream,
+        backup_workspace_1,
+        backup_stream_1,
         78);
   }
 
@@ -287,8 +287,8 @@ void es_sm90_fp8_blockwise_scaled_group_mm_distpatch_out_dtype(
         layout_sfa,
         layout_sfb,
         mm_problem_sizes,
-        workspace,
-        stream,
+        backup_workspace_0,
+        backup_stream_0,
         78);
   }
 }

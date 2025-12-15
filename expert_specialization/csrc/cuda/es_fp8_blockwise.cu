@@ -130,11 +130,9 @@ void es_fp8_blockwise_scaled_grouped_mm(
     TORCH_CHECK(false, "Invalid output type (must be float16 or bfloat16)");
   }
 
-  if (!is_h20_device) {
-    start_event.recordOnce(stream);
-    start_event.block(backup_stream_0);
-    start_event.block(backup_stream_1);
-  }
+  start_event.recordOnce(stream);
+  start_event.block(backup_stream_0);
+  start_event.block(backup_stream_1);
 
   if (output.dtype() == torch::kBFloat16) {
     expert_specialization::es_sm90_fp8_blockwise_scaled_group_mm_distpatch_out_dtype<cutlass::bfloat16_t>(
@@ -184,12 +182,10 @@ void es_fp8_blockwise_scaled_grouped_mm(
     TORCH_CHECK(false, "Invalid output type (must be float16 or bfloat16)");
   }
 
-  if (!is_h20_device) {
-    end_event_0.recordOnce(backup_stream_0);
-    end_event_1.recordOnce(backup_stream_1);
-    end_event_0.block(stream);
-    end_event_1.block(stream);
-  }
+  end_event_0.recordOnce(backup_stream_0);
+  end_event_1.recordOnce(backup_stream_1);
+  end_event_0.block(stream);
+  end_event_1.block(stream);
 #else
   TORCH_CHECK_NOT_IMPLEMENTED(
       can_implement, "No implemented fp8_blockwise_scaled_grouped_mm for current compute capability: ", sm_version);
