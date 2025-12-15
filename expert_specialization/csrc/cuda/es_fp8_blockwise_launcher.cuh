@@ -65,12 +65,26 @@ void es_sm90_fp8_blockwise_scaled_group_mm_pre_compute(
       static_cast<float**>(b_scales_ptrs.data_ptr()),
       static_cast<T**>(out_ptrs.data_ptr()));
   if (!is_h20_device) {
+    const std::string H100_device_type_str("NVIDIA H100 80GB HBM3");
+    const std::string H200_device_type_str("NVIDIA H200");
+    auto device_name = std::string(at::cuda::getCurrentDeviceProperties()->name);
+    float ridge_point = 0.0;
+    if (device_name == H100_device_type_str) {
+      // ridge_point = 1978.9 / 3.352 * 0.8;
+      ridge_point = 1441.6 / 3.352 * 0.8;
+    } else if (device_name == H200_device_type_str) {
+      ridge_point = 1978.9 / 4.8 * 0.8;
+    } else {
+      // TODO: H800? H100 40GB?
+      ridge_point = 1978.9 / 3.352 * 0.7;
+    }
+
     struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigLowMHx00> lm_psf(
-        static_cast<int*>(lm_problem_sizes.data_ptr()));
+        static_cast<int*>(lm_problem_sizes.data_ptr()), ridge_point);
     struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigMiddleMHx00> mm_psf(
-        static_cast<int*>(mm_problem_sizes.data_ptr()));
+        static_cast<int*>(mm_problem_sizes.data_ptr()), ridge_point);
     struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigHighMHx00> hm_psf(
-        static_cast<int*>(hm_problem_sizes.data_ptr()));
+        static_cast<int*>(hm_problem_sizes.data_ptr()), ridge_point);
     groupedGemmPreComputeKernel<<<1, num_experts, 0, stream>>>(
         static_cast<int*>(problem_sizes.data_ptr()), of, sf_layout, lm_psf, mm_psf, hm_psf);
   } else {

@@ -147,12 +147,19 @@ struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigLowMH20> {
 template <>
 struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigLowMHx00> {
   int* problem_sizes{nullptr};
+  float ridge_point{0.0f};
 
   Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor() = default;
-  Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor(int* _problem_sizes) : problem_sizes(_problem_sizes) {}
+  Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor(int* _problem_sizes, float _ridge_point)
+      : problem_sizes(_problem_sizes), ridge_point(_ridge_point) {}
 
   void CUTE_DEVICE operator()(int64_t expert_id, int m, int n, int k) {
-    if (m <= 32) {
+    float m_f = __int2float_rn(m);
+    float n_f = __int2float_rn(n);
+    float k_f = __int2float_rn(k);
+    float arithmetic_intensity = 2.0f * m_f * n_f * k_f / (m_f * k_f + k_f * n_f + 2.0f * m_f * n_f);
+
+    if (arithmetic_intensity < ridge_point && m <= 32) {
       // Swap A/B
       problem_sizes[expert_id * 3 + 0] = n;
       problem_sizes[expert_id * 3 + 1] = m;
@@ -193,12 +200,19 @@ struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigMiddleMH20> {
 template <>
 struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigMiddleMHx00> {
   int* problem_sizes{nullptr};
+  float ridge_point{0.0f};
 
   Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor() = default;
-  Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor(int* _problem_sizes) : problem_sizes(_problem_sizes) {}
+  Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor(int* _problem_sizes, float _ridge_point)
+      : problem_sizes(_problem_sizes), ridge_point(_ridge_point) {}
 
   void CUTE_DEVICE operator()(int64_t expert_id, int m, int n, int k) {
-    if (m > 32 && m <= 64) {
+    float m_f = __int2float_rn(m);
+    float n_f = __int2float_rn(n);
+    float k_f = __int2float_rn(k);
+    float arithmetic_intensity = 2.0f * m_f * n_f * k_f / (m_f * k_f + k_f * n_f + 2.0f * m_f * n_f);
+
+    if (arithmetic_intensity < ridge_point && m > 32) {
       problem_sizes[expert_id * 3 + 0] = n;
       problem_sizes[expert_id * 3 + 1] = m;
       problem_sizes[expert_id * 3 + 2] = k;
@@ -238,12 +252,19 @@ struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigHighMH20> {
 template <>
 struct Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor<PerfConfigHighMHx00> {
   int* problem_sizes{nullptr};
+  float ridge_point{0.0f};
 
   Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor() = default;
-  Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor(int* _problem_sizes) : problem_sizes(_problem_sizes) {}
+  Fp8BlockwiseGroupedGemmProblemSizeFilterFunctor(int* _problem_sizes, float _ridge_point)
+      : problem_sizes(_problem_sizes), ridge_point(_ridge_point) {}
 
   void CUTE_DEVICE operator()(int64_t expert_id, int m, int n, int k) {
-    if (m > 64) {
+    float m_f = __int2float_rn(m);
+    float n_f = __int2float_rn(n);
+    float k_f = __int2float_rn(k);
+    float arithmetic_intensity = 2.0f * m_f * n_f * k_f / (m_f * k_f + k_f * n_f + 2.0f * m_f * n_f);
+
+    if (!(arithmetic_intensity < ridge_point)) {
       problem_sizes[expert_id * 3 + 0] = m;
       problem_sizes[expert_id * 3 + 1] = n;
       problem_sizes[expert_id * 3 + 2] = k;
