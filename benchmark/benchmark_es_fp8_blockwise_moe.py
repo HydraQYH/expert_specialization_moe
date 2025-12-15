@@ -83,13 +83,13 @@ def bench_es(
         m_g = group_ms[g]
         expert_offsets[g + 1] = expert_offsets[g] + m_g
         problem_sizes[g][:] = torch.tensor([m_g, n_g, k_g], device=device)
-        if group_ms[g] == 0:
-            continue
-        a_g, a_scale = per_token_cast_to_fp8(torch.randn((m_g, k_g), device=device))
+        if group_ms[g] != 0:
+            a_g, a_scale = per_token_cast_to_fp8(torch.randn((m_g, k_g), device=device))
+            a_tensors.append(a_g)
+            a_scales_tensors.append(a_scale)
+
         b_g, b_scale = per_block_cast_to_fp8(torch.randn((n_g, k_g), device=device).t())
-        a_tensors.append(a_g)
         b_tensors.append(b_g)
-        a_scales_tensors.append(a_scale)
         b_scales_tensors.append(b_scale)
 
     a_stack = torch.empty(
@@ -100,9 +100,8 @@ def bench_es(
     )
 
     for g in range(num_groups):
-        if group_ms[g] == 0:
-            continue
-        a_stack[expert_offsets[g] : expert_offsets[g + 1]] = a_tensors[g]
+        if group_ms[g] != 0:
+            a_stack[expert_offsets[g] : expert_offsets[g + 1]] = a_tensors[g]
         b_stack[g] = b_tensors[g].t()
     b_stack = b_stack.transpose(1, 2)
 
@@ -114,9 +113,8 @@ def bench_es(
     )
 
     for g in range(num_groups):
-        if group_ms[g] == 0:
-            continue
-        a_scale_stack[expert_offsets[g] : expert_offsets[g + 1]] = a_scales_tensors[g]
+        if group_ms[g] != 0:
+            a_scale_stack[expert_offsets[g] : expert_offsets[g + 1]] = a_scales_tensors[g]
         b_scale_stack[g] = b_scales_tensors[g].t()
     b_scale_stack = b_scale_stack.transpose(1, 2)
 
@@ -211,13 +209,13 @@ def bench_sgl(
         m_g = group_ms[g]
         expert_offsets[g + 1] = expert_offsets[g] + m_g
         problem_sizes[g][:] = torch.tensor([m_g, n_g, k_g], device=device)
-        if group_ms[g] == 0:
-            continue
-        a_g, a_scale = per_token_cast_to_fp8(torch.randn((m_g, k_g), device=device))
+        if group_ms[g] != 0:
+            a_g, a_scale = per_token_cast_to_fp8(torch.randn((m_g, k_g), device=device))
+            a_tensors.append(a_g)
+            a_scales_tensors.append(a_scale)
+
         b_g, b_scale = per_block_cast_to_fp8(torch.randn((n_g, k_g), device=device).t())
-        a_tensors.append(a_g)
         b_tensors.append(b_g)
-        a_scales_tensors.append(a_scale)
         b_scales_tensors.append(b_scale)
 
     a_stack = torch.empty(
@@ -228,9 +226,8 @@ def bench_sgl(
     )
 
     for g in range(num_groups):
-        if group_ms[g] == 0:
-            continue
-        a_stack[expert_offsets[g] : expert_offsets[g + 1]] = a_tensors[g]
+        if group_ms[g] != 0:
+            a_stack[expert_offsets[g] : expert_offsets[g + 1]] = a_tensors[g]
         b_stack[g] = b_tensors[g].t()
     b_stack = b_stack.transpose(1, 2)
 
@@ -242,9 +239,8 @@ def bench_sgl(
     )
 
     for g in range(num_groups):
-        if group_ms[g] == 0:
-            continue
-        a_scale_stack[expert_offsets[g] : expert_offsets[g + 1]] = a_scales_tensors[g]
+        if group_ms[g] != 0:
+            a_scale_stack[expert_offsets[g] : expert_offsets[g + 1]] = a_scales_tensors[g]
         b_scale_stack[g] = b_scales_tensors[g].t()
     b_scale_stack = b_scale_stack.transpose(1, 2)
 
