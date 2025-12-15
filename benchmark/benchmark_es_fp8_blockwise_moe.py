@@ -40,26 +40,20 @@ def per_block_cast_to_fp8(x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
     )
 
 
-def create_unbalanced_expert_token_distribution(max_num_experts):
-    ratios = [random.random() for _ in range(max_num_experts)]
-    def convert_to_tokens(ratio: float):
-        if ratio <= 0.7:
-            return random.randint(1, 32)
-        elif ratio > 0.7 and ratio <= 0.85:
-            return random.randint(33, 64)
-        elif ratio > 0.85 and ratio <= 0.95:
-            return random.randint(65, 128)
-        elif ratio > 0.95:
-            return random.randint(129, 1024)
-        else:
-            return 128
-    group_ms = [convert_to_tokens(ratio) for ratio in ratios]
+def create_unbalanced_expert_token_distribution(batch_size: int, topk: int, num_experts: int):
+    expert_ids = np.random.randint(0, num_experts, size=(batch_size * topk,)).tolist()
+    expert_to_count = dict()
+    for expert_id in expert_ids:
+        if expert_id not in expert_to_count:
+            expert_to_count[expert_id] = 0
+        expert_to_count[expert_id] += 1
+    group_ms = []
+    for expert_id in range(num_experts):
+        group_ms.append(expert_to_count[expert_id])
     return group_ms
 
-# group_ms = create_unbalanced_expert_token_distribution(8192)
-group_ms = [random.randint(1, 128) for _ in range(8192)]
-
 def bench_es(
+    group_ms: List[int],
     n: int,
     k: int,
     num_groups: int,
@@ -184,6 +178,7 @@ def bench_es(
     return avg, expert_offsets[-1]
 
 def bench_sgl(
+    group_ms: List[int],
     n: int,
     k: int,
     num_groups: int,
@@ -320,18 +315,21 @@ def benchmark_one_shape(
     num_run: int,
 ):
     for shape in shape_args:
-        print(
-            f"\nBenchmark: n={shape.n}, k={shape.k}, num_groups={shape.num_groups}"
-        )
-        for kernel_name, kernel_func in benchmark_kernels.items():
-            average_time, m = kernel_func(
-                shape.n,
-                shape.k,
-                shape.num_groups,
-                num_warmup,
-                num_run,
+        for batch_size in [16, 32, 64, 128, 256, 512, 1024, 2048]:
+            group_ms = create_unbalanced_expert_token_distribution(batch_size, 8, shape.num_groups)
+            print(
+                f"\nBenchmark: batch_size={batch_size}, n={shape.n}, k={shape.k}, num_groups={shape.num_groups}"
             )
-            print(f"{kernel_name}: {average_time} us")
+            for kernel_name, kernel_func in benchmark_kernels.items():
+                average_time, m = kernel_func(
+                    group_ms,
+                    shape.n,
+                    shape.k,
+                    shape.num_groups,
+                    num_warmup,
+                    num_run,
+                )
+                print(f"{kernel_name}: {average_time} us")
 
 
 def main():
