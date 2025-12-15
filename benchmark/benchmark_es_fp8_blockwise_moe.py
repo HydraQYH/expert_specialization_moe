@@ -83,7 +83,8 @@ def bench_es(
         m_g = group_ms[g]
         expert_offsets[g + 1] = expert_offsets[g] + m_g
         problem_sizes[g][:] = torch.tensor([m_g, n_g, k_g], device=device)
-
+        if group_ms[g] == 0:
+            continue
         a_g, a_scale = per_token_cast_to_fp8(torch.randn((m_g, k_g), device=device))
         b_g, b_scale = per_block_cast_to_fp8(torch.randn((n_g, k_g), device=device).t())
         a_tensors.append(a_g)
@@ -206,7 +207,8 @@ def bench_sgl(
         m_g = group_ms[g]
         expert_offsets[g + 1] = expert_offsets[g] + m_g
         problem_sizes[g][:] = torch.tensor([m_g, n_g, k_g], device=device)
-
+        if group_ms[g] == 0:
+            continue
         a_g, a_scale = per_token_cast_to_fp8(torch.randn((m_g, k_g), device=device))
         b_g, b_scale = per_block_cast_to_fp8(torch.randn((n_g, k_g), device=device).t())
         a_tensors.append(a_g)
