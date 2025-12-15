@@ -114,6 +114,8 @@ def bench_es(
     )
 
     for g in range(num_groups):
+        if group_ms[g] == 0:
+            continue
         a_scale_stack[expert_offsets[g] : expert_offsets[g + 1]] = a_scales_tensors[g]
         b_scale_stack[g] = b_scales_tensors[g].t()
     b_scale_stack = b_scale_stack.transpose(1, 2)
@@ -240,6 +242,8 @@ def bench_sgl(
     )
 
     for g in range(num_groups):
+        if group_ms[g] == 0:
+            continue
         a_scale_stack[expert_offsets[g] : expert_offsets[g + 1]] = a_scales_tensors[g]
         b_scale_stack[g] = b_scales_tensors[g].t()
     b_scale_stack = b_scale_stack.transpose(1, 2)
