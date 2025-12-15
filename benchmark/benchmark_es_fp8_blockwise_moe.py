@@ -43,9 +43,9 @@ def per_block_cast_to_fp8(x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
 def create_unbalanced_expert_token_distribution(batch_size: int, topk: int, num_experts: int):
     expert_ids = np.random.randint(0, num_experts, size=(batch_size * topk,)).tolist()
     expert_to_count = dict()
+    for expert_id in range(num_experts):
+        expert_to_count[expert_id] = 0
     for expert_id in expert_ids:
-        if expert_id not in expert_to_count:
-            expert_to_count[expert_id] = 0
         expert_to_count[expert_id] += 1
     group_ms = []
     for expert_id in range(num_experts):
