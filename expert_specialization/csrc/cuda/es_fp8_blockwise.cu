@@ -78,8 +78,8 @@ void es_fp8_blockwise_scaled_grouped_mm(
   bool is_h20_device = std::string(at::cuda::getCurrentDeviceProperties()->name) == H20_device_type_str;
 
   auto stream = at::cuda::getCurrentCUDAStream();
-  auto backup_stream_0 = at::cuda::getStreamFromPool();
-  auto backup_stream_1 = at::cuda::getStreamFromPool();
+  static auto backup_stream_0 = at::cuda::getStreamFromPool();
+  static auto backup_stream_1 = at::cuda::getStreamFromPool();
   at::cuda::CUDAEvent start_event;
   at::cuda::CUDAEvent end_event_0;
   at::cuda::CUDAEvent end_event_1;

@@ -129,7 +129,6 @@ void launch_sm90_fp8_blockwise_scaled_group_mm(
 
   cutlass::KernelHardwareInfo hw_info;
   hw_info.device_id = c10::cuda::current_device();
-  // hw_info.sm_count = at::cuda::getCurrentDeviceProperties()->multiProcessorCount;
   hw_info.sm_count = sm_count;
 
   typename GemmKernel::EpilogueArguments epilogue_args{
@@ -149,7 +148,7 @@ void launch_sm90_fp8_blockwise_scaled_group_mm(
   auto status = gemm_op.initialize(args, workspace.data_ptr(), stream);
   TORCH_CHECK(status == cutlass::Status::kSuccess, "Failed to initialize GEMM");
 
-  status = gemm_op.run(stream, nullptr, true);  // Enable PDL
+  status = gemm_op.run(stream, nullptr);
   TORCH_CHECK(status == cutlass::Status::kSuccess, "Failed to run GEMM");
 }
 

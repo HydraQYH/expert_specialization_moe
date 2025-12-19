@@ -1,14 +1,15 @@
 import argparse
 import random
-import numpy as np
 from dataclasses import dataclass
 from typing import List, Tuple
 
+import numpy as np
 import torch
 from sgl_kernel import fp8_blockwise_scaled_grouped_mm
 from expert_specialization.ops import es_fp8_blockwise_scaled_grouped_mm
 
 random.seed(28)
+
 
 def ceil_div(x: int, y: int) -> int:
     return (x + y - 1) // y
@@ -40,7 +41,9 @@ def per_block_cast_to_fp8(x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
     )
 
 
-def create_unbalanced_expert_token_distribution(batch_size: int, topk: int, num_experts: int):
+def create_unbalanced_expert_token_distribution(
+    batch_size: int, topk: int, num_experts: int
+):
     expert_ids = np.random.randint(0, num_experts, size=(batch_size * topk,)).tolist()
     expert_to_count = dict()
     for expert_id in range(num_experts):
@@ -52,6 +55,7 @@ def create_unbalanced_expert_token_distribution(batch_size: int, topk: int, num_
         group_ms.append(expert_to_count[expert_id])
     return group_ms
 
+
 def bench_es(
     group_ms: List[int],
     n: int,
@@ -59,9 +63,6 @@ def bench_es(
     num_groups: int,
     num_warmup: int,
     num_run: int,
-    enable_cuda_profiler_api: bool = False,
-    enable_pytorch_profiler: bool = False,
-    pytorch_profiler_output_path: str = None,
 ) -> Tuple[float, int]:
     device = "cuda"
     alignment = 128
@@ -117,7 +118,9 @@ def bench_es(
     _aux_idx = 0
     for g in range(num_groups):
         if group_ms[g] != 0:
-            a_scale_stack[expert_offsets[g] : expert_offsets[g + 1]] = a_scales_tensors[_aux_idx]
+            a_scale_stack[expert_offsets[g] : expert_offsets[g + 1]] = a_scales_tensors[
+                _aux_idx
+            ]
             _aux_idx += 1
         b_scale_stack[g] = b_scales_tensors[g].t()
     b_scale_stack = b_scale_stack.transpose(1, 2)
@@ -143,8 +146,9 @@ def bench_es(
             d_strides,
             problem_sizes,
             expert_offsets[:-1],
-            workspace
+            workspace,
         )
+
     run_cutlass()
     # warmup
     for _ in range(num_warmup):
@@ -162,27 +166,8 @@ def bench_es(
     torch.cuda.synchronize()
     avg = start_event.elapsed_time(end_event) / num_run * 1000  # us
 
-    if enable_cuda_profiler_api:
-        torch.cuda.cudart().cudaProfilerStart()
-        run_cutlass()
-        torch.cuda.cudart().cudaProfilerStop()
-
-    if enable_pytorch_profiler:
-        assert pytorch_profiler_output_path is not None
-        worker_name = f"es_group_{num_groups}_m_{sum(group_ms[0:num_groups])}_n_{n}_k_{k}"
-        with torch.profiler.profile(
-            activities=[
-                torch.profiler.ProfilerActivity.CPU,
-                torch.profiler.ProfilerActivity.CUDA,
-            ],
-            schedule=torch.profiler.schedule(wait=1, warmup=1, active=2, repeat=1, skip_first=1),
-            on_trace_ready=torch.profiler.tensorboard_trace_handler(pytorch_profiler_output_path, worker_name=worker_name)
-        ) as p:
-            for _ in range(5):
-                run_cutlass()
-                p.step()
-
     return avg, expert_offsets[-1]
+
 
 def bench_sgl(
     group_ms: List[int],
@@ -191,7 +176,6 @@ def bench_sgl(
     num_groups: int,
     num_warmup: int,
     num_run: int,
-    enable_cuda_profiler_api: bool = False,
 ) -> Tuple[float, int]:
     device = "cuda"
     alignment = 128
@@ -247,7 +231,9 @@ def bench_sgl(
     _aux_idx = 0
     for g in range(num_groups):
         if group_ms[g] != 0:
-            a_scale_stack[expert_offsets[g] : expert_offsets[g + 1]] = a_scales_tensors[_aux_idx]
+            a_scale_stack[expert_offsets[g] : expert_offsets[g + 1]] = a_scales_tensors[
+                _aux_idx
+            ]
             _aux_idx += 1
         b_scale_stack[g] = b_scales_tensors[g].t()
     b_scale_stack = b_scale_stack.transpose(1, 2)
@@ -304,17 +290,11 @@ def bench_sgl(
     torch.cuda.synchronize()
     avg = start_event.elapsed_time(end_event) / num_run * 1000  # us
 
-    if enable_cuda_profiler_api:
-        torch.cuda.cudart().cudaProfilerStart()
-        run_cutlass()
-        torch.cuda.cudart().cudaProfilerStop()
-
     return avg, expert_offsets[-1]
 
-benchmark_kernels = {
-    "es": bench_es,
-    "sgl-kernel": bench_sgl
-}
+
+benchmark_kernels = {"es": bench_es, "sgl-kernel": bench_sgl}
+
 
 @dataclass
 class ShapeArg:
@@ -329,8 +309,23 @@ def benchmark_one_shape(
     num_run: int,
 ):
     for shape in shape_args:
-        for batch_size in [16, 32, 64, 128, 256, 512, 1024, 2048]:
-            group_ms = create_unbalanced_expert_token_distribution(batch_size, 8, shape.num_groups)
+        for batch_size in [
+            128,
+            256,
+            384,
+            512,
+            640,
+            768,
+            896,
+            1024,
+            1280,
+            1536,
+            2048,
+            3072,
+        ]:
+            group_ms = create_unbalanced_expert_token_distribution(
+                batch_size, 8, shape.num_groups
+            )
             print(
                 f"\nBenchmark: batch_size={batch_size}, n={shape.n}, k={shape.k}, num_groups={shape.num_groups}"
             )
@@ -370,6 +365,7 @@ def main():
     ]
     args = parser.parse_args()
     benchmark_one_shape(shape_args, args.num_warmup, args.num_run)
+
 
 if __name__ == "__main__":
     main()
