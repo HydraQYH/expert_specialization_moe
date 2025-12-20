@@ -1,0 +1,384 @@
+
+Benchmark: batch_size=128, n=512, k=7168, num_groups=256
+es: 310.7856035232544 us
+sgl-kernel: 311.9472026824951 us
+
+Benchmark: batch_size=256, n=512, k=7168, num_groups=256
+es: 313.1920099258423 us
+sgl-kernel: 318.0880069732666 us
+
+Benchmark: batch_size=384, n=512, k=7168, num_groups=256
+es: 316.48640632629395 us
+sgl-kernel: 923.5088348388672 us
+
+Benchmark: batch_size=512, n=512, k=7168, num_groups=256
+es: 319.12479400634766 us
+sgl-kernel: 923.9263534545898 us
+
+Benchmark: batch_size=640, n=512, k=7168, num_groups=256
+es: 321.57280445098877 us
+sgl-kernel: 924.0863800048828 us
+
+Benchmark: batch_size=768, n=512, k=7168, num_groups=256
+es: 324.7503995895386 us
+sgl-kernel: 923.9119529724121 us
+
+Benchmark: batch_size=896, n=512, k=7168, num_groups=256
+es: 346.01919651031494 us
+sgl-kernel: 922.7375984191895 us
+
+Benchmark: batch_size=1024, n=512, k=7168, num_groups=256
+es: 391.1760091781616 us
+sgl-kernel: 922.0095634460449 us
+
+Benchmark: batch_size=1280, n=512, k=7168, num_groups=256
+es: 476.7439842224121 us
+sgl-kernel: 920.8992004394531 us
+
+Benchmark: batch_size=1536, n=512, k=7168, num_groups=256
+es: 507.40160942077637 us
+sgl-kernel: 921.2320327758789 us
+
+Benchmark: batch_size=2048, n=512, k=7168, num_groups=256
+es: 699.6767997741699 us
+sgl-kernel: 921.8735694885254 us
+
+Benchmark: batch_size=3072, n=512, k=7168, num_groups=256
+es: 930.1136016845703 us
+sgl-kernel: 922.7359771728516 us
+
+Benchmark: batch_size=128, n=7168, k=256, num_groups=256
+es: 251.04799270629886 us
+sgl-kernel: 341.44160747528076 us
+
+Benchmark: batch_size=256, n=7168, k=256, num_groups=256
+es: 253.96320819854733 us
+sgl-kernel: 346.014404296875 us
+
+Benchmark: batch_size=384, n=7168, k=256, num_groups=256
+es: 256.0544013977051 us
+sgl-kernel: 587.6976013183594 us
+
+Benchmark: batch_size=512, n=7168, k=256, num_groups=256
+es: 258.26079845428467 us
+sgl-kernel: 588.6864185333252 us
+
+Benchmark: batch_size=640, n=7168, k=256, num_groups=256
+es: 258.5983991622925 us
+sgl-kernel: 589.3104076385498 us
+
+Benchmark: batch_size=768, n=7168, k=256, num_groups=256
+es: 269.14238929748535 us
+sgl-kernel: 589.6255970001221 us
+
+Benchmark: batch_size=896, n=7168, k=256, num_groups=256
+es: 295.7295894622803 us
+sgl-kernel: 591.7535781860352 us
+
+Benchmark: batch_size=1024, n=7168, k=256, num_groups=256
+es: 363.69919776916504 us
+sgl-kernel: 593.3231830596924 us
+
+Benchmark: batch_size=1280, n=7168, k=256, num_groups=256
+es: 453.97119522094727 us
+sgl-kernel: 593.8528060913086 us
+
+Benchmark: batch_size=1536, n=7168, k=256, num_groups=256
+es: 438.28158378601074 us
+sgl-kernel: 595.8176136016846 us
+
+Benchmark: batch_size=2048, n=7168, k=256, num_groups=256
+es: 486.35997772216797 us
+sgl-kernel: 597.983980178833 us
+
+Benchmark: batch_size=3072, n=7168, k=256, num_groups=256
+es: 601.9760131835938 us
+sgl-kernel: 598.4479904174805 us
+
+Benchmark: batch_size=128, n=1024, k=7168, num_groups=256
+es: 565.1504039764404 us
+sgl-kernel: 581.2064170837402 us
+
+Benchmark: batch_size=256, n=1024, k=7168, num_groups=256
+es: 604.4000148773193 us
+sgl-kernel: 595.4192161560059 us
+
+Benchmark: batch_size=384, n=1024, k=7168, num_groups=256
+es: 608.9104175567627 us
+sgl-kernel: 1794.963264465332 us
+
+Benchmark: batch_size=512, n=1024, k=7168, num_groups=256
+es: 613.7631893157959 us
+sgl-kernel: 1798.027229309082 us
+
+Benchmark: batch_size=640, n=1024, k=7168, num_groups=256
+es: 615.6320095062256 us
+sgl-kernel: 1796.7567443847656 us
+
+Benchmark: batch_size=768, n=1024, k=7168, num_groups=256
+es: 613.7311935424805 us
+sgl-kernel: 1798.2576370239258 us
+
+Benchmark: batch_size=896, n=1024, k=7168, num_groups=256
+es: 654.1632175445557 us
+sgl-kernel: 1795.1648712158203 us
+
+Benchmark: batch_size=1024, n=1024, k=7168, num_groups=256
+es: 750.926399230957 us
+sgl-kernel: 1800.2912521362305 us
+
+Benchmark: batch_size=1280, n=1024, k=7168, num_groups=256
+es: 885.0864410400391 us
+sgl-kernel: 1795.9407806396484 us
+
+Benchmark: batch_size=1536, n=1024, k=7168, num_groups=256
+es: 948.3584403991699 us
+sgl-kernel: 1802.564811706543 us
+
+Benchmark: batch_size=2048, n=1024, k=7168, num_groups=256
+es: 1340.2400016784668 us
+sgl-kernel: 1797.0399856567383 us
+
+Benchmark: batch_size=3072, n=1024, k=7168, num_groups=256
+es: 1802.1024703979492 us
+sgl-kernel: 1805.094337463379 us
+
+Benchmark: batch_size=128, n=7168, k=512, num_groups=256
+es: 357.94079303741455 us
+sgl-kernel: 399.09119606018066 us
+
+Benchmark: batch_size=256, n=7168, k=512, num_groups=256
+es: 365.8479928970337 us
+sgl-kernel: 405.52802085876465 us
+
+Benchmark: batch_size=384, n=7168, k=512, num_groups=256
+es: 368.27681064605713 us
+sgl-kernel: 933.5136413574219 us
+
+Benchmark: batch_size=512, n=7168, k=512, num_groups=256
+es: 366.55359268188477 us
+sgl-kernel: 933.6912155151367 us
+
+Benchmark: batch_size=640, n=7168, k=512, num_groups=256
+es: 369.54240798950195 us
+sgl-kernel: 933.244800567627 us
+
+Benchmark: batch_size=768, n=7168, k=512, num_groups=256
+es: 387.2960090637207 us
+sgl-kernel: 932.590389251709 us
+
+Benchmark: batch_size=896, n=7168, k=512, num_groups=256
+es: 434.8896026611328 us
+sgl-kernel: 931.766414642334 us
+
+Benchmark: batch_size=1024, n=7168, k=512, num_groups=256
+es: 497.6912021636963 us
+sgl-kernel: 930.8799743652344 us
+
+Benchmark: batch_size=1280, n=7168, k=512, num_groups=256
+es: 580.0015926361084 us
+sgl-kernel: 931.8367958068848 us
+
+Benchmark: batch_size=1536, n=7168, k=512, num_groups=256
+es: 525.5599975585938 us
+sgl-kernel: 932.21435546875 us
+
+Benchmark: batch_size=2048, n=7168, k=512, num_groups=256
+es: 714.1952037811279 us
+sgl-kernel: 933.743953704834 us
+
+Benchmark: batch_size=3072, n=7168, k=512, num_groups=256
+es: 947.599983215332 us
+sgl-kernel: 935.8192443847656 us
+
+Benchmark: batch_size=128, n=768, k=4096, num_groups=128
+es: 167.13440418243408 us
+sgl-kernel: 140.4528021812439 us
+
+Benchmark: batch_size=256, n=768, k=4096, num_groups=128
+es: 168.36479902267456 us
+sgl-kernel: 142.93440580368042 us
+
+Benchmark: batch_size=384, n=768, k=4096, num_groups=128
+es: 173.4928011894226 us
+sgl-kernel: 400.7376194000244 us
+
+Benchmark: batch_size=512, n=768, k=4096, num_groups=128
+es: 211.56160831451416 us
+sgl-kernel: 399.5151996612549 us
+
+Benchmark: batch_size=640, n=768, k=4096, num_groups=128
+es: 257.09118843078613 us
+sgl-kernel: 401.0591983795166 us
+
+Benchmark: batch_size=768, n=768, k=4096, num_groups=128
+es: 241.11199378967285 us
+sgl-kernel: 399.86560344696045 us
+
+Benchmark: batch_size=896, n=768, k=4096, num_groups=128
+es: 248.57280254364014 us
+sgl-kernel: 401.3567924499512 us
+
+Benchmark: batch_size=1024, n=768, k=4096, num_groups=128
+es: 301.7280101776123 us
+sgl-kernel: 399.94399547576904 us
+
+Benchmark: batch_size=1280, n=768, k=4096, num_groups=128
+es: 409.18240547180176 us
+sgl-kernel: 401.71360969543457 us
+
+Benchmark: batch_size=1536, n=768, k=4096, num_groups=128
+es: 404.6031951904297 us
+sgl-kernel: 400.3791809082031 us
+
+Benchmark: batch_size=2048, n=768, k=4096, num_groups=128
+es: 585.7279777526855 us
+sgl-kernel: 576.5103816986084 us
+
+Benchmark: batch_size=3072, n=768, k=4096, num_groups=128
+es: 789.6639823913574 us
+sgl-kernel: 786.8207931518555 us
+
+Benchmark: batch_size=128, n=4096, k=384, num_groups=128
+es: 105.91200590133667 us
+sgl-kernel: 118.77440214157104 us
+
+Benchmark: batch_size=256, n=4096, k=384, num_groups=128
+es: 107.52480030059814 us
+sgl-kernel: 118.32799911499023 us
+
+Benchmark: batch_size=384, n=4096, k=384, num_groups=128
+es: 111.58720254898071 us
+sgl-kernel: 219.69280242919922 us
+
+Benchmark: batch_size=512, n=4096, k=384, num_groups=128
+es: 143.74239444732666 us
+sgl-kernel: 219.16959285736084 us
+
+Benchmark: batch_size=640, n=4096, k=384, num_groups=128
+es: 164.87200260162354 us
+sgl-kernel: 219.43039894104004 us
+
+Benchmark: batch_size=768, n=4096, k=384, num_groups=128
+es: 147.37279415130615 us
+sgl-kernel: 218.63200664520264 us
+
+Benchmark: batch_size=896, n=4096, k=384, num_groups=128
+es: 154.03200387954712 us
+sgl-kernel: 220.42720317840576 us
+
+Benchmark: batch_size=1024, n=4096, k=384, num_groups=128
+es: 180.075204372406 us
+sgl-kernel: 221.08960151672363 us
+
+Benchmark: batch_size=1280, n=4096, k=384, num_groups=128
+es: 227.42080688476562 us
+sgl-kernel: 221.32320404052734 us
+
+Benchmark: batch_size=1536, n=4096, k=384, num_groups=128
+es: 226.91199779510498 us
+sgl-kernel: 221.1888074874878 us
+
+Benchmark: batch_size=2048, n=4096, k=384, num_groups=128
+es: 310.8975887298584 us
+sgl-kernel: 301.5968084335327 us
+
+Benchmark: batch_size=3072, n=4096, k=384, num_groups=128
+es: 422.6064205169678 us
+sgl-kernel: 413.0512237548828 us
+
+Benchmark: batch_size=128, n=1536, k=4096, num_groups=128
+es: 259.79199409484863 us
+sgl-kernel: 262.6352071762085 us
+
+Benchmark: batch_size=256, n=1536, k=4096, num_groups=128
+es: 263.57760429382324 us
+sgl-kernel: 266.1839962005615 us
+
+Benchmark: batch_size=384, n=1536, k=4096, num_groups=128
+es: 281.84800148010254 us
+sgl-kernel: 784.3152046203613 us
+
+Benchmark: batch_size=512, n=1536, k=4096, num_groups=128
+es: 340.8128023147583 us
+sgl-kernel: 786.9743824005127 us
+
+Benchmark: batch_size=640, n=1536, k=4096, num_groups=128
+es: 400.98562240600586 us
+sgl-kernel: 787.9631996154785 us
+
+Benchmark: batch_size=768, n=1536, k=4096, num_groups=128
+es: 416.70079231262207 us
+sgl-kernel: 785.2208137512207 us
+
+Benchmark: batch_size=896, n=1536, k=4096, num_groups=128
+es: 464.5472049713135 us
+sgl-kernel: 785.6351852416992 us
+
+Benchmark: batch_size=1024, n=1536, k=4096, num_groups=128
+es: 589.3599987030029 us
+sgl-kernel: 788.8751983642578 us
+
+Benchmark: batch_size=1280, n=1536, k=4096, num_groups=128
+es: 779.4879913330078 us
+sgl-kernel: 789.247989654541 us
+
+Benchmark: batch_size=1536, n=1536, k=4096, num_groups=128
+es: 793.2703971862793 us
+sgl-kernel: 788.8720035552979 us
+
+Benchmark: batch_size=2048, n=1536, k=4096, num_groups=128
+es: 1212.235164642334 us
+sgl-kernel: 1191.983985900879 us
+
+Benchmark: batch_size=3072, n=1536, k=4096, num_groups=128
+es: 1549.3568420410156 us
+sgl-kernel: 1542.1135902404785 us
+
+Benchmark: batch_size=128, n=4096, k=768, num_groups=128
+es: 160.0767970085144 us
+sgl-kernel: 148.2815980911255 us
+
+Benchmark: batch_size=256, n=4096, k=768, num_groups=128
+es: 161.92480325698853 us
+sgl-kernel: 149.98559951782227 us
+
+Benchmark: batch_size=384, n=4096, k=768, num_groups=128
+es: 167.8063988685608 us
+sgl-kernel: 405.7936191558838 us
+
+Benchmark: batch_size=512, n=4096, k=768, num_groups=128
+es: 212.57119178771973 us
+sgl-kernel: 404.32162284851074 us
+
+Benchmark: batch_size=640, n=4096, k=768, num_groups=128
+es: 243.23999881744385 us
+sgl-kernel: 405.40318489074707 us
+
+Benchmark: batch_size=768, n=4096, k=768, num_groups=128
+es: 229.66721057891846 us
+sgl-kernel: 405.12962341308594 us
+
+Benchmark: batch_size=896, n=4096, k=768, num_groups=128
+es: 257.2943925857544 us
+sgl-kernel: 407.06238746643066 us
+
+Benchmark: batch_size=1024, n=4096, k=768, num_groups=128
+es: 323.5584020614624 us
+sgl-kernel: 404.77919578552246 us
+
+Benchmark: batch_size=1280, n=4096, k=768, num_groups=128
+es: 412.5728130340576 us
+sgl-kernel: 406.72640800476074 us
+
+Benchmark: batch_size=1536, n=4096, k=768, num_groups=128
+es: 415.01760482788086 us
+sgl-kernel: 405.4687976837158 us
+
+Benchmark: batch_size=2048, n=4096, k=768, num_groups=128
+es: 591.9695854187012 us
+sgl-kernel: 586.4496231079102 us
+
+Benchmark: batch_size=3072, n=4096, k=768, num_groups=128
+es: 803.1311988830566 us
+sgl-kernel: 793.2496070861816 us

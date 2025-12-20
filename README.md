@@ -24,13 +24,12 @@ python3 ./benchmark/benchmark_es_fp8_blockwise_moe.py
 ```
 
 ## Result
-I haven't yet tuned the performance now. However, preliminary test results on the H20 GPU show that the Expert Specialization MoE Kernel offers significant performance improvements compared to the sgl-kernel(0.3.9.post2), especially when the workload across different expert  is unbalanced:
-![alt text](media/image/image.png)
+Please refer to the `media/performace_data` for the performance results.
 
 ## TODO
 Currently, I only support one type of Grouped GEMM (SM90 FP8 Blockwise). The two main tasks that follow are:
 - [ ] Support more types of Grouped GEMM.
-- [ ] Tune the performance for different token range.
+- [x] Tune the performance for different token range.
 
 ## Contact
 If you have any questions or suggestions, or perhaps you want to participate in the development process, please feel free to contact me. Both of these email addresses are valid:
